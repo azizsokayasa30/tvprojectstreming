@@ -23,7 +23,7 @@ body.light {
 body.light .topbar { background: rgba(255, 255, 255, .88); }
 body.light { background: var(--bg); }
 body.light .btn { color: #fff; }
-body.light .drawer-nav button.on, body.light .list-head:hover b, body.light .list-head:hover .chev, body.light .menu-btn:hover { color: var(--accent); }
+body.light .drawer-nav button.on, body.light .list-head:hover b, body.light .list-head:hover .menu-btn { color: var(--accent); }
 body.light .drawer { background: rgba(15, 20, 35, .35); }
 body.light .btn.ghost { color: var(--text); }
 
@@ -382,10 +382,10 @@ body.light .quality-menu button.on { background: color-mix(in srgb, var(--accent
 /* Sidebar */
 .list-head {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
+  align-items: center;
+  gap: 10px;
   width: 100%;
-  padding: 13px 16px;
+  padding: 10px 14px;
   background: none;
   border: 0;
   border-bottom: 1px solid var(--line);
@@ -393,25 +393,24 @@ body.light .quality-menu button.on { background: color-mix(in srgb, var(--accent
   text-align: left;
 }
 .list-head b { font-size: 15px; }
-.list-head span { color: var(--muted); font-size: 12.5px; }
-.list-head .chev { align-self: center; margin-left: auto; width: 18px; height: 18px; color: var(--muted); transition: color .15s; }
-.list-head:hover b, .list-head:hover .chev { color: var(--accent-2); }
+.list-head b + span { color: var(--muted); font-size: 12.5px; }
+.list-head:hover b { color: var(--accent-2); }
 
 /* Category drawer */
 .menu-btn {
   flex: none;
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
   background: var(--panel-2);
   border: 1px solid var(--line);
   color: var(--text);
   transition: border-color .15s, color .15s;
 }
 .menu-btn svg { width: 20px; height: 20px; }
-.menu-btn:hover { border-color: var(--accent); color: var(--accent-2); }
+.list-head:hover .menu-btn { border-color: var(--accent); color: var(--accent-2); }
 .drawer { position: fixed; inset: 0; z-index: 45; background: rgba(4, 7, 15, .55); backdrop-filter: blur(3px); animation: fadeIn .2s ease-out; }
 .drawer-panel {
   position: absolute;
@@ -808,7 +807,7 @@ body:not(.light) ::-webkit-scrollbar-track { background: transparent; }
   .brand-name { display: inline; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; letter-spacing: .3px; }
   .search { order: 3; flex: 1 0 100%; max-width: none; margin: 0; }
   .search input { padding: 10px 0; }
-  .theme-btn, .account-btn, .menu-btn { width: 36px; height: 36px; }
+  .theme-btn, .account-btn { width: 36px; height: 36px; }
   .ping { min-width: 0; height: 36px; padding: 0 9px; gap: 5px; font-size: 12px; }
 
   .layout, .layout.sidebar-left { padding: 0 0 12px; gap: 0; }
@@ -851,7 +850,7 @@ body:not(.light) ::-webkit-scrollbar-track { background: transparent; }
   body .layout .sidebar { background: none; border: 0; border-radius: 0; box-shadow: none; backdrop-filter: none; }
   .list-head {
     position: sticky; top: 0; z-index: 5;
-    padding: 12px 16px;
+    padding: 10px 14px;
     background: color-mix(in srgb, var(--bg) 90%, transparent);
     backdrop-filter: blur(12px);
   }

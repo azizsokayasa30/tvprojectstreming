@@ -46,7 +46,7 @@
     qualitySelect: $('qualitySelect'),
     copyBtn: $('copyBtn'), fsInfoBtn: $('fsInfoBtn'), hint: $('hint'),
     search: $('search'), list: $('list'), status: $('status'),
-    menuBtn: $('menuBtn'), listHead: $('listHead'), catTitle: $('catTitle'), catCount: $('catCount'),
+    listHead: $('listHead'), catTitle: $('catTitle'), catCount: $('catCount'),
     drawer: $('drawer'), drawerNav: $('drawerNav'), drawerClose: $('drawerClose'),
     toast: $('toast'), brandLink: $('brandLink'), brandMark: $('brandMark'), brandName: $('brandName'),
     welcomeTitle: $('welcomeTitle'), welcomeText: $('welcomeText'), announce: $('announce'),
@@ -1206,7 +1206,6 @@
     el.subscribeBtn.onclick = openSubscribe;
     el.subClose.onclick = () => { el.subModal.hidden = true; };
     el.subModal.addEventListener('click', (e) => { if (e.target === el.subModal) el.subModal.hidden = true; });
-    el.menuBtn.onclick = openDrawer;
     el.listHead.onclick = openDrawer;
     el.drawerClose.onclick = closeDrawer;
     el.drawer.addEventListener('click', (e) => { if (e.target === el.drawer) closeDrawer(); });
