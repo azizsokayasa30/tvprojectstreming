@@ -1,7 +1,7 @@
 {
-  "name": "tv-nusantara-apk",
+  "name": "tekdroid-tv-apk",
   "private": true,
-  "description": "Aplikasi Android TV Nusantara (Capacitor) yang membuka server.js",
+  "description": "Aplikasi Android TEKDROID TV (Capacitor) yang membuka server.js",
   "scripts": {
     "prepare-app": "node scripts/prepare.js"
   },

@@ -596,7 +596,7 @@
       card('Tata letak', null,
         h('div', { class: 'grid2' },
           selectField(s, 'sidebarPosition', 'Posisi daftar channel', [['right', 'Kanan'], ['left', 'Kiri']]),
-          textField(s, 'footerText', 'Teks footer (opsional)', { placeholder: 'mis. © 2026 TV Nusantara' }))),
+          textField(s, 'footerText', 'Teks footer (opsional)', { placeholder: 'mis. © 2026 TEKDROID TV' }))),
     );
   }
 

@@ -1,4 +1,4 @@
-// Server TV Nusantara tanpa dependency.
+// Server TEKDROID TV tanpa dependency.
 // - Web utama: semua path tanpa ekstensi (mis. /indosiar) dikembalikan ke index.html.
 // - Portal admin: /admin (login password, pengaturan disimpan di folder data/).
 // - Akun penonton: /api/auth/* (daftar/masuk); bila "wajib login" aktif, data channel hanya untuk yang sudah masuk.
@@ -68,7 +68,7 @@ function seedChannels() {
 function defaultConfig() {
   return {
     site: {
-      name: 'TV Nusantara',
+      name: 'TEKDROID TV',
       logoUrl: '',
       accent: '#e5203a',
       theme: 'dark',
@@ -190,7 +190,7 @@ function sanitizeConfig(input, current) {
   const keepSecret = (v, old) => (v === SECRET_MASK ? old : str(v, 300));
   return {
     site: {
-      name: str(site.name, 60) || 'TV Nusantara',
+      name: str(site.name, 60) || 'TEKDROID TV',
       logoUrl: url(site.logoUrl),
       accent: color(site.accent, '#e5203a'),
       theme: oneOf(site.theme, ['dark', 'light'], 'dark'),
@@ -740,7 +740,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`TV Nusantara berjalan di http://localhost:${PORT}`);
+  console.log(`TEKDROID TV berjalan di http://localhost:${PORT}`);
   console.log(`Portal admin: http://localhost:${PORT}/admin`);
   const lan = Object.values(require('os').networkInterfaces()).flat()
     .filter((n) => n && n.family === 'IPv4' && !n.internal)

@@ -16,8 +16,8 @@ if (!/^https?:\/\/[^\s/]+/i.test(serverUrl)) {
 }
 
 const config = {
-  appId: 'id.tvnusantara.app',
-  appName: 'TV Nusantara',
+  appId: 'id.tekdroid.tv',
+  appName: 'TEKDROID TV',
   webDir: 'build/www',
   backgroundColor: '#0a0e17',
   server: {

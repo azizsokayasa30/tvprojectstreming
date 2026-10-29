@@ -5,7 +5,7 @@
   // Dipakai jika server tidak berjalan (mis. index.html dibuka langsung dari file://).
   const FALLBACK_CONFIG = {
     site: {
-      name: 'TV Nusantara', logoUrl: '', accent: '#e5203a', theme: 'dark',
+      name: 'TEKDROID TV', logoUrl: '', accent: '#e5203a', theme: 'dark',
       welcomeTitle: 'Nonton TV Indonesia, live.', welcomeText: 'Pilih channel di bawah atau dari daftar di samping.',
       announcement: { enabled: false, text: '', tone: 'info' }, sidebarPosition: 'right',
       showQuickGrid: true, quickGridCount: 18, defaultCategory: 'Semua', footerText: '',

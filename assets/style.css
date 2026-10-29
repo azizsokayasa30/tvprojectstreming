@@ -60,8 +60,8 @@ svg { width: 20px; height: 20px; flex: none; }
 }
 .brand { display: flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none; }
 .brand-mark svg { width: 34px; height: 34px; }
-.brand-name { font-size: 18px; letter-spacing: .2px; white-space: nowrap; }
-.brand-name b { color: var(--accent-2); }
+.brand-name { font-size: 18px; font-weight: 700; letter-spacing: .6px; white-space: nowrap; }
+.brand-name b { font-weight: 800; color: var(--accent-2); }
 .search {
   flex: 1;
   max-width: 520px;
