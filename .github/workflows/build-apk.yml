@@ -18,25 +18,30 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # Image ini sudah membawa Android SDK (ANDROID_HOME).
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: apk
     env:
       SERVER_URL: ${{ github.event.inputs.server_url || vars.APK_SERVER_URL || 'http://192.168.0.168:8080' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
 
-      - uses: android-actions/setup-android@v3
+      - name: Cek Android SDK
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          test -d "$ANDROID_HOME"
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
 
       - name: Install dependency
         run: npm install --no-audit --no-fund
