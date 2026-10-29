@@ -29,7 +29,49 @@
     <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2" fill="currentColor"/><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
     <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" fill="currentColor"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="4" fill="currentColor"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0z" fill="currentColor"/></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24"><path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4M10 16l-4-4 4-4M6 12h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="14" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m11 11 8-8m-3 3 2.5 2.5M14 8l2 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
   </svg>
+
+  <div class="auth" id="auth" hidden>
+    <div class="auth-card" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+      <div class="auth-brand">
+        <span class="brand-mark" id="authMark"><svg viewBox="0 0 32 32"><rect x="2" y="6" width="28" height="19" rx="4" fill="var(--accent)"/><path d="M13 11v9l8-4.5z" fill="#fff"/></svg></span>
+        <span class="brand-name" id="authName">TV <b>Nusantara</b></span>
+      </div>
+      <h1 id="authTitle">Masuk untuk mulai menonton</h1>
+      <p class="auth-sub" id="authSub">Nonton live TV nasional, TVRI daerah, dan TV lokal Indonesia.</p>
+      <div class="auth-tabs" id="authTabs">
+        <button type="button" data-tab="login" class="on">Masuk</button>
+        <button type="button" data-tab="register">Daftar</button>
+      </div>
+      <form class="auth-form" id="loginForm" novalidate>
+        <label class="auth-field"><span>Email atau nomor HP</span>
+          <input name="login" type="text" inputmode="email" autocomplete="username" placeholder="nama@email.com / 08xxxxxxxxxx" required>
+        </label>
+        <label class="auth-field"><span>Password</span>
+          <input name="password" type="password" autocomplete="current-password" required>
+        </label>
+        <p class="auth-error" hidden></p>
+        <button class="btn" type="submit">Masuk</button>
+      </form>
+      <form class="auth-form" id="registerForm" novalidate hidden>
+        <label class="auth-field"><span>Nama</span>
+          <input name="name" type="text" autocomplete="name" maxlength="60" required>
+        </label>
+        <label class="auth-field"><span>Email atau nomor HP</span>
+          <input name="login" type="text" inputmode="email" autocomplete="username" placeholder="nama@email.com / 08xxxxxxxxxx" required>
+        </label>
+        <label class="auth-field"><span>Password <small>(minimal 6 karakter)</small></span>
+          <input name="password" type="password" autocomplete="new-password" minlength="6" required>
+        </label>
+        <p class="auth-error" hidden></p>
+        <button class="btn" type="submit">Buat akun</button>
+      </form>
+      <button class="link-btn auth-close" id="authClose" type="button" hidden>Nanti saja</button>
+    </div>
+  </div>
 
   <header class="topbar">
     <a class="brand" href="./" id="brandLink">
@@ -42,6 +84,19 @@
     </label>
     <button class="theme-btn" id="themeBtn" type="button" title="Ganti ke mode terang" aria-label="Ganti ke mode terang"><svg><use href="#i-sun"/></svg></button>
     <button class="btn sub-btn" id="subscribeBtn" type="button" hidden><svg><use href="#i-star"/></svg> <span id="subscribeText">Berlangganan</span></button>
+    <button class="btn ghost login-btn" id="loginBtn" type="button" hidden><svg><use href="#i-user"/></svg> Masuk</button>
+    <div class="account" id="account" hidden>
+      <button class="account-btn" id="accountBtn" type="button" aria-haspopup="true" aria-label="Akun saya"><span id="accountAvatar"></span></button>
+      <div class="account-menu" id="accountMenu" hidden>
+        <div class="account-head">
+          <b id="accountName"></b>
+          <span id="accountLogin"></span>
+        </div>
+        <div class="account-plan" id="accountPlan"></div>
+        <button type="button" id="passBtn"><svg><use href="#i-key"/></svg> Ganti password</button>
+        <button type="button" id="logoutBtn"><svg><use href="#i-logout"/></svg> Keluar</button>
+      </div>
+    </div>
   </header>
 
   <div class="announce" id="announce" hidden></div>
@@ -157,6 +212,25 @@
           <button class="btn" type="submit">Aktifkan</button>
         </form>
       </div>
+    </div>
+  </div>
+
+  <div class="modal" id="passModal" hidden>
+    <div class="modal-card narrow" role="dialog" aria-modal="true" aria-labelledby="passTitle">
+      <header>
+        <h2 id="passTitle">Ganti password</h2>
+        <button class="ctl" id="passClose" type="button" aria-label="Tutup">✕</button>
+      </header>
+      <form class="modal-body auth-form" id="passForm" novalidate>
+        <label class="auth-field"><span>Password lama</span>
+          <input name="current" type="password" autocomplete="current-password" required>
+        </label>
+        <label class="auth-field"><span>Password baru <small>(minimal 6 karakter)</small></span>
+          <input name="next" type="password" autocomplete="new-password" minlength="6" required>
+        </label>
+        <p class="auth-error" hidden></p>
+        <button class="btn" type="submit">Simpan password</button>
+      </form>
     </div>
   </div>
 

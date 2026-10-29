@@ -1,6 +1,7 @@
 // Server TV Nusantara tanpa dependency.
 // - Web utama: semua path tanpa ekstensi (mis. /indosiar) dikembalikan ke index.html.
 // - Portal admin: /admin (login password, pengaturan disimpan di folder data/).
+// - Akun penonton: /api/auth/* (daftar/masuk); bila "wajib login" aktif, data channel hanya untuk yang sudah masuk.
 // - /api/youtube-live mencari ID video live di channel YouTube resmi
 //   (YouTube sudah tidak mendukung embed live berdasarkan channel ID).
 const http = require('http');
@@ -16,11 +17,14 @@ const FILES = {
   admin: path.join(DATA_DIR, 'admin.json'),
   codes: path.join(DATA_DIR, 'access-codes.json'),
   stats: path.join(DATA_DIR, 'stats.json'),
+  users: path.join(DATA_DIR, 'users.json'),
+  userSessions: path.join(DATA_DIR, 'user-sessions.json'),
 };
 const PORT = Number(process.env.PORT) || 8080;
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36';
 const YT_CACHE_MS = 10 * 60 * 1000;
 const SESSION_MS = 12 * 60 * 60 * 1000;
+const USER_SESSION_MS = 30 * 24 * 60 * 60 * 1000;
 const SECRET_MASK = '••••••••';
 const SOURCE_TYPES = ['hls', 'iframe', 'youtube', 'vidio'];
 const TYPES = {
@@ -77,6 +81,10 @@ function defaultConfig() {
       defaultCategory: 'Semua',
       footerText: '',
     },
+    auth: {
+      requireLogin: true,
+      allowRegister: true,
+    },
     streaming: {
       playlistEnabled: true,
       playlistUrl: 'https://iptv-org.github.io/iptv/countries/id.m3u',
@@ -115,6 +123,7 @@ function loadConfig() {
   }
   return {
     site: { ...def.site, ...saved.site, announcement: { ...def.site.announcement, ...(saved.site || {}).announcement } },
+    auth: { ...def.auth, ...saved.auth },
     streaming: { ...def.streaming, ...saved.streaming },
     payment: { ...def.payment, ...saved.payment, gateway: { ...def.payment.gateway, ...(saved.payment || {}).gateway } },
     channels: Array.isArray(saved.channels) ? saved.channels : def.channels,
@@ -174,6 +183,7 @@ function sanitizeChannel(c) {
 
 function sanitizeConfig(input, current) {
   const site = input.site || {};
+  const auth = input.auth || {};
   const streaming = input.streaming || {};
   const payment = input.payment || {};
   const gw = payment.gateway || {};
@@ -196,6 +206,10 @@ function sanitizeConfig(input, current) {
       quickGridCount: num(site.quickGridCount, 0, 48, 18),
       defaultCategory: str(site.defaultCategory, 40) || 'Semua',
       footerText: str(site.footerText, 300),
+    },
+    auth: {
+      requireLogin: bool(auth.requireLogin),
+      allowRegister: bool(auth.allowRegister),
     },
     streaming: {
       playlistEnabled: bool(streaming.playlistEnabled),
@@ -252,6 +266,7 @@ function publicView(cfg) {
   const p = cfg.payment;
   return {
     site: cfg.site,
+    auth: cfg.auth,
     streaming: cfg.streaming,
     payment: paid
       ? {
@@ -287,11 +302,13 @@ if (!admin) {
   console.log('──────────────────────────────────────────────');
 }
 
-function verifyPassword(password) {
-  if (typeof password !== 'string' || !password) return false;
-  const h = crypto.scryptSync(password, admin.salt, 64);
-  return crypto.timingSafeEqual(h, Buffer.from(admin.hash, 'hex'));
+function checkPassword(password, rec) {
+  if (typeof password !== 'string' || !password || password.length > 200) return false;
+  const h = crypto.scryptSync(password, rec.salt, 64);
+  return crypto.timingSafeEqual(h, Buffer.from(rec.hash, 'hex'));
 }
+
+const verifyPassword = (password) => checkPassword(password, admin);
 
 const sessions = new Map();
 
@@ -303,18 +320,90 @@ function sessionToken(req) {
   return m[1];
 }
 
-const attempts = new Map();
-function limited(ip) {
-  const a = attempts.get(ip);
-  return a && a.count >= 5 && a.until > Date.now();
+function makeLimiter(max, windowMs) {
+  const attempts = new Map();
+  return {
+    limited(ip) {
+      const a = attempts.get(ip);
+      return Boolean(a && a.count >= max && a.until > Date.now());
+    },
+    hit(ip) {
+      const a = attempts.get(ip) || { count: 0, until: 0 };
+      if (a.until < Date.now()) a.count = 0;
+      a.count++;
+      a.until = Date.now() + windowMs;
+      attempts.set(ip, a);
+    },
+    reset(ip) { attempts.delete(ip); },
+  };
 }
-function recordFailure(ip) {
-  const a = attempts.get(ip) || { count: 0, until: 0 };
-  if (a.until < Date.now()) a.count = 0;
-  a.count++;
-  a.until = Date.now() + 5 * 60 * 1000;
-  attempts.set(ip, a);
+
+const TOO_MANY = { error: 'Terlalu banyak percobaan. Coba lagi beberapa menit lagi.' };
+const adminLimiter = makeLimiter(5, 5 * 60 * 1000);
+const codeLimiter = makeLimiter(5, 5 * 60 * 1000);
+const userLimiter = makeLimiter(8, 5 * 60 * 1000);
+const registerLimiter = makeLimiter(5, 60 * 60 * 1000);
+
+// ---------- Akun penonton ----------
+
+let users = readJson(FILES.users, []);
+const saveUsers = () => writeJson(FILES.users, users);
+
+// Token sesi disimpan dalam bentuk hash, jadi isi file tidak bisa dipakai untuk login.
+const userSessions = new Map(
+  Object.entries(readJson(FILES.userSessions, {})).filter(([, s]) => s && s.exp > Date.now()),
+);
+const saveUserSessions = () => writeJson(FILES.userSessions, Object.fromEntries(userSessions));
+const tokenHash = (token) => crypto.createHash('sha256').update(token).digest('hex');
+
+function normalizeLogin(value) {
+  const s = str(value, 120).toLowerCase();
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)) return s;
+  const d = s.replace(/[\s\-().]/g, '');
+  if (!/^\+?\d{8,15}$/.test(d)) return '';
+  const n = d.replace(/^\+/, '');
+  return n.startsWith('62') ? '0' + n.slice(2) : n;
 }
+
+function startUserSession(user) {
+  const token = crypto.randomBytes(32).toString('hex');
+  userSessions.set(tokenHash(token), { userId: user.id, exp: Date.now() + USER_SESSION_MS });
+  saveUserSessions();
+  return `tvn_user=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${USER_SESSION_MS / 1000}`;
+}
+
+function userSessionKey(req) {
+  const m = /(?:^|;\s*)tvn_user=([a-f0-9]{64})/.exec(req.headers.cookie || '');
+  return m ? tokenHash(m[1]) : null;
+}
+
+function currentUser(req) {
+  const key = userSessionKey(req);
+  const s = key && userSessions.get(key);
+  if (!s) return null;
+  const user = users.find((u) => u.id === s.userId);
+  if (s.exp < Date.now() || !user || user.disabled) {
+    userSessions.delete(key);
+    saveUserSessions();
+    return null;
+  }
+  return user;
+}
+
+function endUserSessions(userId, keepKey = null) {
+  for (const [k, s] of userSessions) if (s.userId === userId && k !== keepKey) userSessions.delete(k);
+  saveUserSessions();
+}
+
+function userAccess(user) {
+  const now = Date.now();
+  const active = codes.filter((c) => c.userId === user.id && c.redeemedAt && c.expiresAt > now)
+    .sort((a, b) => b.expiresAt - a.expiresAt)[0];
+  return active ? { plan: active.planName, expiresAt: active.expiresAt } : null;
+}
+
+const userView = (u) => ({ id: u.id, name: u.name, login: u.login, createdAt: u.createdAt, access: userAccess(u) });
+const CLEAR_USER_COOKIE = 'tvn_user=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0';
 
 // ---------- Kode akses premium ----------
 
@@ -328,11 +417,6 @@ function makeCode() {
 function codeStatus(c) {
   if (!c.redeemedAt) return 'baru';
   return c.expiresAt > Date.now() ? 'aktif' : 'kedaluwarsa';
-}
-
-function activeCode(value) {
-  const c = codes.find((x) => x.code === String(value || '').trim().toUpperCase());
-  return c && c.redeemedAt && c.expiresAt > Date.now() ? c : null;
 }
 
 // ---------- YouTube live ----------
@@ -382,8 +466,74 @@ async function handleApi(req, res, url) {
   const isJson = (req.headers['content-type'] || '').startsWith('application/json');
   if (req.method !== 'GET' && !isJson) return sendJson(res, 415, { error: 'Gunakan application/json' });
 
-  // --- Publik ---
-  if (p === '/api/config' && req.method === 'GET') return sendJson(res, 200, publicView(config));
+  // --- Akun penonton ---
+  const user = currentUser(req);
+  const loginRequired = config.auth.requireLogin && !user;
+
+  if (p === '/api/auth/register' && req.method === 'POST') {
+    if (!config.auth.allowRegister) return sendJson(res, 403, { error: 'Pendaftaran akun sedang ditutup.' });
+    if (registerLimiter.limited(ip)) return sendJson(res, 429, TOO_MANY);
+    const body = await readBody(req);
+    const name = str(body.name, 60);
+    const login = normalizeLogin(body.login);
+    if (name.length < 2) return sendJson(res, 400, { error: 'Nama minimal 2 karakter.' });
+    if (!login) return sendJson(res, 400, { error: 'Masukkan email atau nomor HP yang valid.' });
+    if (typeof body.password !== 'string' || body.password.length < 6 || body.password.length > 200) {
+      return sendJson(res, 400, { error: 'Password minimal 6 karakter.' });
+    }
+    if (users.some((u) => u.login === login)) return sendJson(res, 409, { error: 'Email/nomor HP ini sudah terdaftar. Silakan masuk.' });
+    registerLimiter.hit(ip);
+    const now = Date.now();
+    const created = { id: newId(), name, login, ...hashPassword(body.password), createdAt: now, lastLoginAt: now, disabled: false };
+    users.push(created);
+    saveUsers();
+    return sendJson(res, 200, { user: userView(created) }, { 'Set-Cookie': startUserSession(created) });
+  }
+
+  if (p === '/api/auth/login' && req.method === 'POST') {
+    if (userLimiter.limited(ip)) return sendJson(res, 429, TOO_MANY);
+    const body = await readBody(req);
+    const login = normalizeLogin(body.login);
+    const found = login && users.find((u) => u.login === login);
+    if (!found || !checkPassword(body.password, found)) {
+      userLimiter.hit(ip);
+      return sendJson(res, 401, { error: 'Email/nomor HP atau password salah.' });
+    }
+    if (found.disabled) return sendJson(res, 403, { error: 'Akun ini dinonaktifkan. Hubungi admin.' });
+    userLimiter.reset(ip);
+    found.lastLoginAt = Date.now();
+    saveUsers();
+    return sendJson(res, 200, { user: userView(found) }, { 'Set-Cookie': startUserSession(found) });
+  }
+
+  if (p === '/api/auth/logout' && req.method === 'POST') {
+    const key = userSessionKey(req);
+    if (key && userSessions.delete(key)) saveUserSessions();
+    return sendJson(res, 200, { ok: true }, { 'Set-Cookie': CLEAR_USER_COOKIE });
+  }
+
+  if (p === '/api/auth/me' && req.method === 'GET') {
+    return user ? sendJson(res, 200, { user: userView(user) }) : sendJson(res, 401, { error: 'Silakan masuk.' });
+  }
+
+  if (p === '/api/auth/password' && req.method === 'POST') {
+    if (!user) return sendJson(res, 401, { error: 'Silakan masuk.' });
+    const { current, next } = await readBody(req);
+    if (!checkPassword(current, user)) return sendJson(res, 400, { error: 'Password lama salah.' });
+    if (typeof next !== 'string' || next.length < 6 || next.length > 200) return sendJson(res, 400, { error: 'Password baru minimal 6 karakter.' });
+    Object.assign(user, hashPassword(next));
+    saveUsers();
+    endUserSessions(user.id, userSessionKey(req));
+    return sendJson(res, 200, { ok: true });
+  }
+
+  // --- Publik (tertutup bila wajib login) ---
+  if (p === '/api/config' && req.method === 'GET') {
+    if (loginRequired) return sendJson(res, 200, { site: config.site, auth: config.auth, user: null, locked: true });
+    return sendJson(res, 200, { ...publicView(config), user: user ? userView(user) : null });
+  }
+
+  if (!p.startsWith('/api/admin/') && loginRequired) return sendJson(res, 401, { error: 'Silakan masuk terlebih dahulu.' });
 
   if (p === '/api/youtube-live' && req.method === 'GET') {
     const channel = url.searchParams.get('channel') || '';
@@ -402,22 +552,27 @@ async function handleApi(req, res, url) {
   }
 
   if (p === '/api/access/redeem' && req.method === 'POST') {
-    if (limited(ip)) return sendJson(res, 429, { error: 'Terlalu banyak percobaan. Coba lagi 5 menit lagi.' });
+    if (!user) return sendJson(res, 401, { error: 'Masuk ke akun Anda dulu untuk memakai kode akses.' });
+    if (codeLimiter.limited(ip)) return sendJson(res, 429, TOO_MANY);
     const { code } = await readBody(req);
     const c = codes.find((x) => x.code === String(code || '').trim().toUpperCase());
-    if (!c) { recordFailure(ip); return sendJson(res, 404, { error: 'Kode akses tidak ditemukan.' }); }
+    if (!c) { codeLimiter.hit(ip); return sendJson(res, 404, { error: 'Kode akses tidak ditemukan.' }); }
+    if (c.userId && c.userId !== user.id) return sendJson(res, 409, { error: 'Kode ini sudah dipakai akun lain.' });
     if (!c.redeemedAt) {
       const plan = config.payment.plans.find((x) => x.id === c.planId);
+      const current = userAccess(user);
       c.redeemedAt = Date.now();
-      c.expiresAt = c.redeemedAt + (plan ? plan.durationDays : c.durationDays || 1) * 86400000;
-      writeJson(FILES.codes, codes);
+      c.expiresAt = Math.max(c.redeemedAt, current ? current.expiresAt : 0)
+        + (plan ? plan.durationDays : c.durationDays || 1) * 86400000;
     }
     if (c.expiresAt <= Date.now()) return sendJson(res, 410, { error: 'Kode akses sudah kedaluwarsa.' });
-    return sendJson(res, 200, { code: c.code, expiresAt: c.expiresAt, plan: c.planName });
+    c.userId = user.id;
+    writeJson(FILES.codes, codes);
+    return sendJson(res, 200, { user: userView(user) });
   }
 
   if (p === '/api/access/sources' && req.method === 'GET') {
-    if (!activeCode(req.headers['x-access-code'])) return sendJson(res, 403, { error: 'Akses premium tidak aktif.' });
+    if (!user || !userAccess(user)) return sendJson(res, 403, { error: 'Akses premium tidak aktif.' });
     const slug = url.searchParams.get('slug') || '';
     const ch = config.channels.find((c) => c.enabled && (c.slug || slugify(c.name)) === slug);
     if (!ch) return sendJson(res, 404, { error: 'Channel tidak ditemukan.' });
@@ -426,10 +581,10 @@ async function handleApi(req, res, url) {
 
   // --- Admin: login ---
   if (p === '/api/admin/login' && req.method === 'POST') {
-    if (limited(ip)) return sendJson(res, 429, { error: 'Terlalu banyak percobaan. Coba lagi 5 menit lagi.' });
+    if (adminLimiter.limited(ip)) return sendJson(res, 429, TOO_MANY);
     const { password } = await readBody(req);
-    if (!verifyPassword(password)) { recordFailure(ip); return sendJson(res, 401, { error: 'Password salah.' }); }
-    attempts.delete(ip);
+    if (!verifyPassword(password)) { adminLimiter.hit(ip); return sendJson(res, 401, { error: 'Password salah.' }); }
+    adminLimiter.reset(ip);
     const token = crypto.randomBytes(32).toString('hex');
     sessions.set(token, Date.now() + SESSION_MS);
     return sendJson(res, 200, { ok: true }, {
@@ -475,11 +630,50 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, {
       views: stats.views,
       codes: { total: codes.length, active: codes.filter((c) => codeStatus(c) === 'aktif').length, unused: codes.filter((c) => !c.redeemedAt).length },
+      users: { total: users.length, premium: users.filter((u) => userAccess(u)).length },
     });
   }
 
   if (p === '/api/admin/codes' && req.method === 'GET') {
-    return sendJson(res, 200, codes.map((c) => ({ ...c, status: codeStatus(c) })).reverse());
+    const owner = (id) => {
+      if (!id) return '';
+      const u = users.find((x) => x.id === id);
+      return u ? `${u.name} (${u.login})` : '(akun dihapus)';
+    };
+    return sendJson(res, 200, codes.map((c) => ({ ...c, status: codeStatus(c), usedBy: owner(c.userId) })).reverse());
+  }
+
+  if (p === '/api/admin/users' && req.method === 'GET') {
+    return sendJson(res, 200, users.map((u) => ({
+      id: u.id, name: u.name, login: u.login, createdAt: u.createdAt, lastLoginAt: u.lastLoginAt,
+      disabled: Boolean(u.disabled), access: userAccess(u),
+    })).reverse());
+  }
+
+  const userRoute = /^\/api\/admin\/users\/([a-f0-9]{12})(\/reset-password)?$/.exec(p);
+  if (userRoute) {
+    const target = users.find((u) => u.id === userRoute[1]);
+    if (!target) return sendJson(res, 404, { error: 'Pengguna tidak ditemukan.' });
+    if (userRoute[2] && req.method === 'POST') {
+      const temp = crypto.randomBytes(6).toString('base64url');
+      Object.assign(target, hashPassword(temp));
+      saveUsers();
+      endUserSessions(target.id);
+      return sendJson(res, 200, { password: temp });
+    }
+    if (!userRoute[2] && req.method === 'PATCH') {
+      const body = await readBody(req);
+      target.disabled = bool(body.disabled);
+      saveUsers();
+      if (target.disabled) endUserSessions(target.id);
+      return sendJson(res, 200, { ok: true });
+    }
+    if (!userRoute[2] && req.method === 'DELETE') {
+      users = users.filter((u) => u !== target);
+      saveUsers();
+      endUserSessions(target.id);
+      return sendJson(res, 200, { ok: true });
+    }
   }
 
   if (p === '/api/admin/codes' && req.method === 'POST') {

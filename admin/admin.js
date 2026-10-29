@@ -15,6 +15,7 @@
     tampilan: 'Pengaturan Tampilan',
     streaming: 'Pengaturan Streaming',
     pembayaran: 'Pengaturan Pembayaran',
+    pengguna: 'Pengguna',
     akun: 'Akun Admin',
   };
 
@@ -24,6 +25,8 @@
     page: 'ringkasan',
     stats: null,
     codes: [],
+    users: [],
+    userQuery: '',
     playlist: null,
     channelQuery: '',
     playlistQuery: '',
@@ -194,6 +197,7 @@
       stat('Channel utama', `${ch.filter((c) => c.enabled).length}/${ch.length}`, 'aktif / total'),
       stat('Channel premium', ch.filter((c) => c.premium).length, cfg.payment.enabled ? 'butuh kode akses' : 'pembayaran nonaktif → gratis'),
       stat('Pembayaran', cfg.payment.enabled ? 'Aktif' : 'Nonaktif', `${cfg.payment.plans.filter((p) => p.active).length} paket aktif`),
+      stat('Pengguna terdaftar', (state.stats.users || {}).total || 0, `${(state.stats.users || {}).premium || 0} premium aktif`),
       stat('Kode akses aktif', state.stats.codes.active || 0, `${state.stats.codes.unused || 0} belum dipakai`),
       stat('Total tayangan', total.toLocaleString('id-ID'), 'sejak server berjalan pertama kali'),
     ));
@@ -709,7 +713,7 @@
     function fill() {
       tbody.innerHTML = '';
       if (!state.codes.length) {
-        tbody.append(h('tr', {}, h('td', { colspan: 7, class: 'muted', text: 'Belum ada kode akses.' })));
+        tbody.append(h('tr', {}, h('td', { colspan: 8, class: 'muted', text: 'Belum ada kode akses.' })));
         return;
       }
       for (const c of state.codes) {
@@ -721,6 +725,7 @@
           h('td', {}, h('span', { class: 'badge ' + tone, text: c.status })),
           h('td', { text: formatDate(c.createdAt) }),
           h('td', { text: c.expiresAt ? formatDate(c.expiresAt) : `${c.durationDays} hari setelah dipakai` }),
+          h('td', { text: c.usedBy || '—' }),
           h('td', { text: c.note || '—' }),
           h('td', {}, h('button', {
             class: 'btn sm danger', type: 'button', text: 'Hapus',
@@ -764,7 +769,7 @@
       isDirty() && h('p', { class: 'muted small', text: 'Paket yang belum disimpan belum muncul di pilihan; klik "Simpan perubahan" dulu.' }),
       created,
       h('div', { class: 'table-wrap' }, h('table', {},
-        h('thead', {}, h('tr', {}, ['Kode', 'Paket', 'Status', 'Dibuat', 'Aktif sampai', 'Catatan', ''].map((t) => h('th', { text: t })))),
+        h('thead', {}, h('tr', {}, ['Kode', 'Paket', 'Status', 'Dibuat', 'Aktif sampai', 'Dipakai oleh', 'Catatan', ''].map((t) => h('th', { text: t })))),
         tbody)));
   }
 
@@ -772,6 +777,93 @@
     const list = h('div', { class: 'checks' }, state.config.channels.map((c) => h('label', {},
       h('input', { type: 'checkbox', checked: c.premium, onchange: (e) => { c.premium = e.target.checked; markDirty(); } }), c.name)));
     return card('Channel premium', 'Centang channel yang hanya bisa ditonton dengan kode akses aktif.', list);
+  }
+
+  // ---------- Halaman: Pengguna ----------
+
+  function renderPengguna(page) {
+    const a = state.config.auth;
+    const tbody = h('tbody');
+    const count = h('span', { class: 'muted small' });
+    const search = h('input', {
+      type: 'search', placeholder: 'Cari nama, email, atau nomor HP…', value: state.userQuery,
+      oninput: (e) => { state.userQuery = e.target.value; fill(); },
+    });
+
+    async function load() {
+      try { state.users = await api('GET', '/api/admin/users'); } catch (err) { toast(err.message, true); }
+      fill();
+    }
+
+    async function act(fn) {
+      try { await fn(); await load(); } catch (err) { toast(err.message, true); }
+    }
+
+    function fill() {
+      tbody.innerHTML = '';
+      const q = state.userQuery.trim().toLowerCase();
+      const list = state.users.filter((u) => !q || u.name.toLowerCase().includes(q) || u.login.includes(q));
+      count.textContent = `${state.users.length} akun terdaftar`;
+      if (!list.length) {
+        tbody.append(h('tr', {}, h('td', { colspan: 6, class: 'muted', text: state.users.length ? 'Tidak ada pengguna yang cocok.' : 'Belum ada pengguna yang mendaftar.' })));
+        return;
+      }
+      for (const u of list) {
+        tbody.append(h('tr', { class: u.disabled ? 'off' : '' },
+          h('td', {}, h('strong', { text: u.name }), h('div', { class: 'muted small mono', text: u.login })),
+          h('td', {}, u.disabled
+            ? h('span', { class: 'badge red', text: 'Nonaktif' })
+            : h('span', { class: 'badge ok', text: 'Aktif' })),
+          h('td', {}, u.access
+            ? h('span', { class: 'badge warn', text: `${u.access.plan} · s/d ${formatDate(u.access.expiresAt)}` })
+            : h('span', { class: 'muted', text: 'Gratis' })),
+          h('td', { text: formatDate(u.createdAt) }),
+          h('td', { text: formatDate(u.lastLoginAt) }),
+          h('td', {}, h('div', { class: 'row' },
+            h('button', {
+              class: 'btn sm ghost', type: 'button', text: 'Reset password',
+              onclick: () => act(async () => {
+                if (!confirm(`Buat password sementara untuk ${u.name}? Password lamanya tidak bisa dipakai lagi.`)) return;
+                const { password } = await api('POST', `/api/admin/users/${u.id}/reset-password`, {});
+                openModal('Password sementara', [
+                  h('p', { text: `Kirim password ini ke ${u.name} (${u.login}). Minta dia menggantinya lewat menu akun setelah masuk.` }),
+                  h('p', {}, h('span', { class: 'mono', style: 'font-size:20px;font-weight:700', text: password })),
+                ], [
+                  h('button', { class: 'btn ghost', type: 'button', text: 'Salin', onclick: () => navigator.clipboard.writeText(password).then(() => toast('Password disalin.')) }),
+                  h('button', { class: 'btn primary', type: 'button', text: 'Selesai', onclick: closeModal }),
+                ]);
+              }),
+            }),
+            h('button', {
+              class: 'btn sm ghost', type: 'button', text: u.disabled ? 'Aktifkan' : 'Nonaktifkan',
+              onclick: () => act(() => api('PATCH', `/api/admin/users/${u.id}`, { disabled: !u.disabled })),
+            }),
+            h('button', {
+              class: 'btn sm danger', type: 'button', text: 'Hapus',
+              onclick: () => act(async () => {
+                if (!confirm(`Hapus akun ${u.name} (${u.login})? Akses premium akun ini ikut hilang.`)) return;
+                await api('DELETE', `/api/admin/users/${u.id}`);
+              }),
+            })))));
+      }
+    }
+
+    load();
+    page.append(
+      card('Login penonton', 'Simpan perubahan agar berlaku di web dan aplikasi.',
+        h('div', { class: 'stack' },
+          toggle(a, 'requireLogin', 'Wajib login untuk menonton', 'Pengunjung harus masuk ke akunnya sebelum daftar channel dan siaran ditampilkan.'),
+          toggle(a, 'allowRegister', 'Izinkan daftar akun sendiri', 'Tampilkan tab "Daftar" di halaman login. Matikan jika akun hanya untuk pengguna yang sudah ada.'))),
+      h('div', { class: 'card' },
+        h('div', { class: 'card-head' },
+          h('div', {}, h('h2', { text: 'Daftar pengguna' }),
+            h('p', { text: 'Akun yang dinonaktifkan atau dihapus langsung keluar dari semua perangkat.' })),
+          count),
+        h('div', { class: 'row', style: 'margin-bottom:10px' }, h('div', { style: 'flex:1;max-width:340px' }, search)),
+        h('div', { class: 'table-wrap' }, h('table', {},
+          h('thead', {}, h('tr', {}, ['Pengguna', 'Status', 'Langganan', 'Terdaftar', 'Terakhir masuk', ''].map((t) => h('th', { text: t })))),
+          tbody))),
+    );
   }
 
   // ---------- Halaman: Akun ----------
@@ -823,7 +915,7 @@
     page.innerHTML = '';
     $('pageTitle').textContent = PAGES[state.page];
     for (const a of document.querySelectorAll('#navLinks a')) a.classList.toggle('on', a.dataset.page === state.page);
-    ({ ringkasan: renderRingkasan, channel: renderChannel, tampilan: renderTampilan, streaming: renderStreaming, pembayaran: renderPembayaran, akun: renderAkun })[state.page](page);
+    ({ ringkasan: renderRingkasan, channel: renderChannel, tampilan: renderTampilan, streaming: renderStreaming, pembayaran: renderPembayaran, pengguna: renderPengguna, akun: renderAkun })[state.page](page);
   }
 
   function route() {

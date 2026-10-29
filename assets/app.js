@@ -52,6 +52,11 @@
     subscribeBtn: $('subscribeBtn'), subscribeText: $('subscribeText'), subModal: $('subModal'), subClose: $('subClose'),
     accessStatus: $('accessStatus'), plans: $('plans'), payMethods: $('payMethods'), payInstructions: $('payInstructions'),
     redeemForm: $('redeemForm'), redeemCode: $('redeemCode'), themeBtn: $('themeBtn'),
+    auth: $('auth'), authMark: $('authMark'), authName: $('authName'), authTitle: $('authTitle'), authSub: $('authSub'),
+    authTabs: $('authTabs'), loginForm: $('loginForm'), registerForm: $('registerForm'), authClose: $('authClose'),
+    loginBtn: $('loginBtn'), account: $('account'), accountBtn: $('accountBtn'), accountAvatar: $('accountAvatar'),
+    accountMenu: $('accountMenu'), accountName: $('accountName'), accountLogin: $('accountLogin'), accountPlan: $('accountPlan'),
+    passBtn: $('passBtn'), logoutBtn: $('logoutBtn'), passModal: $('passModal'), passClose: $('passClose'), passForm: $('passForm'),
   };
 
   const store = {
@@ -78,7 +83,12 @@
     playlistLoaded: false,
     settings: FALLBACK_CONFIG,
     nationalTvgIds: new Set(),
-    access: null,
+    user: null,
+  };
+
+  const activeAccess = () => {
+    const a = state.user && state.user.access;
+    return a && a.expiresAt > Date.now() ? a : null;
   };
 
   // ---------- Utilitas ----------
@@ -491,20 +501,20 @@
     el.infobar.hidden = true;
     el.hint.textContent = '';
     highlightActive();
-    const access = state.access;
-    if (access) {
+    if (activeAccess()) {
       el.player.dataset.mode = 'loading';
       setLoading(true);
       try {
-        const res = await fetch(`${basePath}api/access/sources?slug=${encodeURIComponent(ch.slug)}`, {
-          headers: { 'x-access-code': access.code },
-        });
+        const res = await fetch(`${basePath}api/access/sources?slug=${encodeURIComponent(ch.slug)}`);
         if (token !== state.token) return;
         if (res.ok) {
           ch.sources = (await res.json()).sources || [];
           if (ch.sources.length) { playChannel(ch, 0); return; }
+        } else if (res.status === 401) {
+          sessionExpired();
+          return;
         } else if (res.status === 403) {
-          setAccess(null);
+          setUser({ ...state.user, access: null });
           toast('Masa aktif akses premium Anda sudah berakhir.');
         }
       } catch { /* server tidak bisa dihubungi */ }
@@ -519,37 +529,178 @@
     el.hint.textContent = 'Channel premium hanya bisa ditonton dengan kode akses aktif.';
   }
 
-  function loadAccess() {
-    const a = store.get('access', null);
-    state.access = a && a.code && a.expiresAt > Date.now() ? a : null;
-    if (!state.access && a) store.set('access', null);
-  }
-
-  function setAccess(a) {
-    state.access = a;
-    store.set('access', a);
-    renderSubscribeButton();
-  }
-
   async function redeem(code, input) {
     code = code.trim().toUpperCase();
     if (!code) return;
+    if (!state.user) {
+      toast('Masuk atau daftar dulu untuk memakai kode akses.');
+      if (!(await showAuth(false))) return;
+    }
     try {
-      const res = await fetch(`${basePath}api/access/redeem`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code }),
-      });
+      const res = await postJson('api/access/redeem', { code });
       const data = await res.json().catch(() => ({}));
+      if (res.status === 401) { sessionExpired(); return; }
       if (!res.ok) { toast(data.error || 'Kode akses tidak valid.'); return; }
-      setAccess({ code: data.code, expiresAt: data.expiresAt, plan: data.plan });
+      setUser(data.user);
       if (input) input.value = '';
       el.subModal.hidden = true;
-      toast(`Akses premium aktif sampai ${formatDate(data.expiresAt)}.`);
+      const access = activeAccess();
+      if (access) toast(`Akses premium aktif sampai ${formatDate(access.expiresAt)}.`);
       if (state.current && isLocked(state.current)) playChannel(state.current, 0);
     } catch {
       toast('Server tidak bisa dihubungi. Coba lagi.');
     }
+  }
+
+  // ---------- Akun penonton ----------
+
+  function postJson(path, body) {
+    return fetch(basePath + path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body || {}),
+    });
+  }
+
+  function sessionExpired() {
+    toast('Sesi login berakhir. Silakan masuk lagi.');
+    setTimeout(() => location.reload(), 1200);
+  }
+
+  function setUser(user) {
+    state.user = user;
+    renderAccount();
+    renderSubscribeButton();
+  }
+
+  function renderAccount() {
+    const user = state.user;
+    const auth = state.settings.auth;
+    el.account.hidden = !user;
+    el.loginBtn.hidden = Boolean(user) || !auth;
+    el.accountMenu.hidden = true;
+    if (!user) return;
+    el.accountAvatar.textContent = (user.name.trim()[0] || '?').toUpperCase();
+    el.accountBtn.title = user.name;
+    el.accountName.textContent = user.name;
+    el.accountLogin.textContent = user.login;
+    const access = activeAccess();
+    el.accountPlan.className = 'account-plan' + (access ? ' on' : '');
+    el.accountPlan.textContent = access
+      ? `Premium ${access.plan || ''} · s/d ${formatDate(access.expiresAt)}`
+      : 'Akun gratis';
+  }
+
+  let authResolve = null;
+
+  function setAuthTab(tab) {
+    const register = tab === 'register';
+    for (const b of el.authTabs.querySelectorAll('button')) b.classList.toggle('on', b.dataset.tab === tab);
+    el.loginForm.hidden = register;
+    el.registerForm.hidden = !register;
+    el.authTitle.textContent = register ? 'Buat akun baru' : 'Masuk untuk mulai menonton';
+    (register ? el.registerForm : el.loginForm).querySelector('input').focus();
+  }
+
+  // Resolve dengan data user setelah berhasil masuk/daftar, atau null bila ditutup.
+  function showAuth(required) {
+    const auth = state.settings.auth || {};
+    el.authTabs.hidden = !auth.allowRegister;
+    el.authClose.hidden = required;
+    el.authSub.textContent = required
+      ? `Nonton live TV nasional, TVRI daerah, dan TV lokal Indonesia di ${state.settings.site.name}.`
+      : 'Masuk ke akun Anda untuk berlangganan dan membuka channel premium.';
+    renderBrand(el.authMark, el.authName);
+    el.auth.hidden = false;
+    document.body.classList.add('auth-open');
+    setAuthTab('login');
+    return new Promise((resolve) => { authResolve = resolve; });
+  }
+
+  function closeAuth(user) {
+    el.auth.hidden = true;
+    document.body.classList.remove('auth-open');
+    for (const f of [el.loginForm, el.registerForm]) { f.reset(); f.querySelector('.auth-error').hidden = true; }
+    if (authResolve) { authResolve(user); authResolve = null; }
+  }
+
+  function formError(form, text) {
+    const p = form.querySelector('.auth-error');
+    p.textContent = text || '';
+    p.hidden = !text;
+  }
+
+  async function submitForm(form, path, onOk) {
+    const data = Object.fromEntries(new FormData(form));
+    const btn = form.querySelector('button[type="submit"]');
+    formError(form, '');
+    btn.disabled = true;
+    try {
+      const res = await postJson(path, data);
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) { formError(form, body.error || 'Terjadi kesalahan. Coba lagi.'); return; }
+      onOk(body);
+    } catch {
+      formError(form, 'Server tidak bisa dihubungi. Periksa koneksi lalu coba lagi.');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function bindAuthEvents() {
+    el.authTabs.addEventListener('click', (e) => { if (e.target.dataset.tab) setAuthTab(e.target.dataset.tab); });
+    el.loginForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const { login, password } = Object.fromEntries(new FormData(el.loginForm));
+      if (!login.trim() || !password) { formError(el.loginForm, 'Isi email/nomor HP dan password.'); return; }
+      submitForm(el.loginForm, 'api/auth/login', (body) => {
+        setUser(body.user);
+        closeAuth(body.user);
+        toast(`Selamat datang, ${body.user.name}!`);
+      });
+    });
+    el.registerForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const { name, login, password } = Object.fromEntries(new FormData(el.registerForm));
+      if (name.trim().length < 2) { formError(el.registerForm, 'Nama minimal 2 karakter.'); return; }
+      if (!login.trim()) { formError(el.registerForm, 'Isi email atau nomor HP.'); return; }
+      if (password.length < 6) { formError(el.registerForm, 'Password minimal 6 karakter.'); return; }
+      submitForm(el.registerForm, 'api/auth/register', (body) => {
+        setUser(body.user);
+        closeAuth(body.user);
+        toast(`Akun berhasil dibuat. Selamat menonton, ${body.user.name}!`);
+      });
+    });
+    el.authClose.onclick = () => closeAuth(null);
+    el.loginBtn.onclick = () => showAuth(false);
+
+    el.accountBtn.onclick = (e) => {
+      e.stopPropagation();
+      el.accountMenu.hidden = !el.accountMenu.hidden;
+    };
+    el.logoutBtn.onclick = async () => {
+      try { await postJson('api/auth/logout'); } catch { /* tetap muat ulang */ }
+      location.reload();
+    };
+    el.passBtn.onclick = () => {
+      el.accountMenu.hidden = true;
+      el.passForm.reset();
+      formError(el.passForm, '');
+      el.passModal.hidden = false;
+      el.passForm.querySelector('input').focus();
+    };
+    el.passClose.onclick = () => { el.passModal.hidden = true; };
+    el.passModal.addEventListener('click', (e) => { if (e.target === el.passModal) el.passModal.hidden = true; });
+    el.passForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const { current, next } = Object.fromEntries(new FormData(el.passForm));
+      if (!current) { formError(el.passForm, 'Isi password lama.'); return; }
+      if (next.length < 6) { formError(el.passForm, 'Password baru minimal 6 karakter.'); return; }
+      submitForm(el.passForm, 'api/auth/password', () => {
+        el.passModal.hidden = true;
+        toast('Password berhasil diganti.');
+      });
+    });
   }
 
   const formatDate = (ms) => new Date(ms).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
@@ -561,17 +712,19 @@
 
   function renderSubscribeButton() {
     const pay = state.settings.payment;
+    const access = activeAccess();
     el.subscribeBtn.hidden = !pay.enabled;
-    el.subscribeBtn.classList.toggle('active', !!state.access);
-    el.subscribeText.textContent = state.access ? 'Premium aktif' : 'Berlangganan';
+    el.subscribeBtn.classList.toggle('active', Boolean(access));
+    el.subscribeText.textContent = access ? 'Premium aktif' : 'Berlangganan';
   }
 
   function openSubscribe() {
     const pay = state.settings.payment;
     const site = state.settings.site;
-    el.accessStatus.hidden = !state.access;
-    if (state.access) {
-      el.accessStatus.textContent = `Akses premium aktif (${state.access.plan || 'paket'}) sampai ${formatDate(state.access.expiresAt)}.`;
+    const access = activeAccess();
+    el.accessStatus.hidden = !access;
+    if (access) {
+      el.accessStatus.textContent = `Akses premium aktif (${access.plan || 'paket'}) sampai ${formatDate(access.expiresAt)}.`;
     }
 
     el.plans.innerHTML = '';
@@ -587,7 +740,8 @@
         a.className = 'btn';
         a.target = '_blank';
         a.rel = 'noopener';
-        const msg = `Halo, saya ingin berlangganan paket ${plan.name} (${formatMoney(plan.price)}) di ${site.name}. Berikut bukti pembayarannya:`;
+        const who = state.user ? ` Akun: ${state.user.name} (${state.user.login}).` : '';
+        const msg = `Halo, saya ingin berlangganan paket ${plan.name} (${formatMoney(plan.price)}) di ${site.name}.${who} Berikut bukti pembayarannya:`;
         a.href = `https://wa.me/${pay.whatsapp}?text=${encodeURIComponent(msg)}`;
         a.textContent = 'Konfirmasi via WhatsApp';
         card.appendChild(a);
@@ -674,6 +828,7 @@
     let info = null;
     try {
       const res = await fetch(`${basePath}api/youtube-live?channel=${encodeURIComponent(channelId)}`);
+      if (res.status === 401) { sessionExpired(); return; }
       if (res.ok) info = await res.json();
     } catch { /* server.js tidak berjalan (mis. dibuka via file://) */ }
     if (token !== state.token) return;
@@ -970,6 +1125,7 @@
     };
     document.addEventListener('click', (e) => {
       if (!el.qualityMenu.hidden && !el.qualityMenu.contains(e.target)) el.qualityMenu.hidden = true;
+      if (!el.accountMenu.hidden && !el.accountMenu.contains(e.target)) el.accountMenu.hidden = true;
     });
     el.qualitySelect.onchange = () => setQuality(Number(el.qualitySelect.value));
     el.pipBtn.hidden = !document.pictureInPictureEnabled;
@@ -1028,7 +1184,12 @@
     el.subModal.addEventListener('click', (e) => { if (e.target === el.subModal) el.subModal.hidden = true; });
 
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && !el.subModal.hidden) { el.subModal.hidden = true; return; }
+      if (e.key === 'Escape') {
+        if (!el.subModal.hidden) { el.subModal.hidden = true; return; }
+        if (!el.passModal.hidden) { el.passModal.hidden = true; return; }
+        if (!el.accountMenu.hidden) { el.accountMenu.hidden = true; return; }
+      }
+      if (!el.auth.hidden) return;
       if (e.target.matches('input, select, textarea') || e.ctrlKey || e.metaKey || e.altKey) return;
       switch (e.key) {
         case 'f': case 'F': e.preventDefault(); toggleFullscreen(); break;
@@ -1055,23 +1216,32 @@
     }
   }
 
-  function applySettings() {
+  function renderBrand(markEl, nameEl) {
     const site = state.settings.site;
-    document.documentElement.style.setProperty('--accent', site.accent);
-    applyTheme(store.get('theme', site.theme));
-
     const words = site.name.trim().split(/\s+/);
-    el.brandName.textContent = words.length > 1 ? words.slice(0, -1).join(' ') + ' ' : '';
+    nameEl.textContent = words.length > 1 ? words.slice(0, -1).join(' ') + ' ' : '';
     const bold = document.createElement('b');
     bold.textContent = words[words.length - 1];
-    el.brandName.appendChild(bold);
+    nameEl.appendChild(bold);
     if (site.logoUrl) {
       const img = document.createElement('img');
       img.src = site.logoUrl;
       img.alt = '';
       img.style.cssText = 'height:34px;max-width:120px;object-fit:contain;display:block';
-      el.brandMark.replaceChildren(img);
+      markEl.replaceChildren(img);
     }
+  }
+
+  function applyBaseLook() {
+    const site = state.settings.site;
+    document.documentElement.style.setProperty('--accent', site.accent);
+    applyTheme(store.get('theme', site.theme));
+  }
+
+  function applySettings() {
+    const site = state.settings.site;
+    applyBaseLook();
+    renderBrand(el.brandMark, el.brandName);
 
     if (site.welcomeTitle) el.welcomeTitle.textContent = site.welcomeTitle;
     el.welcomeText.textContent = site.welcomeText;
@@ -1086,6 +1256,7 @@
     el.footer.textContent = site.footerText;
     if (site.defaultCategory) state.category = site.defaultCategory;
     renderSubscribeButton();
+    renderAccount();
   }
 
   function applyTheme(theme) {
@@ -1109,11 +1280,19 @@
     // Terapkan pilihan tema pengunjung sebelum menunggu server agar halaman tidak berkedip.
     const savedTheme = store.get('theme', null);
     if (savedTheme) applyTheme(savedTheme);
-    const config = await fetchConfig();
-    const channels = config ? config.channels : window.NATIONAL_CHANNELS;
-    if (config) state.settings = config;
+    bindAuthEvents();
+    let config = await fetchConfig();
+    if (config && config.locked) {
+      state.settings = { ...FALLBACK_CONFIG, ...config };
+      applyBaseLook();
+      document.title = `Masuk — ${config.site.name}`;
+      await showAuth(true);
+      config = await fetchConfig();
+    }
+    const channels = config && config.channels ? config.channels : window.NATIONAL_CHANNELS;
+    if (config && !config.locked) state.settings = config;
+    state.user = config ? config.user : null;
     state.nationalTvgIds = new Set([...window.NATIONAL_CHANNELS, ...channels].map((c) => c.tvgId).filter(Boolean));
-    loadAccess();
     applySettings();
     channels.forEach((c) => addChannel({ ...c, sources: [...(c.sources || [])], tags: [], res: null }));
     const awaitsPlaylist = state.settings.streaming.playlistEnabled;
