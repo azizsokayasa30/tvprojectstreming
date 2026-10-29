@@ -548,4 +548,8 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, () => {
   console.log(`TV Nusantara berjalan di http://localhost:${PORT}`);
   console.log(`Portal admin: http://localhost:${PORT}/admin`);
+  const lan = Object.values(require('os').networkInterfaces()).flat()
+    .filter((n) => n && n.family === 'IPv4' && !n.internal)
+    .map((n) => `http://${n.address}:${PORT}`);
+  if (lan.length) console.log(`Dari HP / aplikasi (satu Wi-Fi): ${lan.join('  ')}`);
 });

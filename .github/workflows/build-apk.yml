@@ -1,0 +1,77 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apk/**'
+      - '.github/workflows/build-apk.yml'
+  workflow_dispatch:
+    inputs:
+      server_url:
+        description: 'Alamat server TV Nusantara yang dibuka aplikasi'
+        required: true
+        default: 'http://192.168.0.168:8080'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apk
+    env:
+      SERVER_URL: ${{ github.event.inputs.server_url || vars.APK_SERVER_URL || 'http://192.168.0.168:8080' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install dependency
+        run: npm install --no-audit --no-fund
+
+      - name: Siapkan konfigurasi, ikon, dan proyek Android
+        run: |
+          node scripts/prepare.js "$SERVER_URL"
+          npx cap add android
+          npx capacitor-assets generate --android
+          npx cap sync android
+
+      - name: Izinkan HTTP & atur versi
+        run: |
+          sed -i 's/<application/<application android:usesCleartextTraffic="true"/' android/app/src/main/AndroidManifest.xml
+          sed -i -E "s/versionCode [0-9]+/versionCode ${{ github.run_number }}/; s/versionName \"[^\"]+\"/versionName \"1.0.${{ github.run_number }}\"/" android/app/build.gradle
+
+      - name: Build APK
+        working-directory: apk/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/TV-Nusantara.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TV-Nusantara-apk
+          path: TV-Nusantara.apk
+
+      - name: Terbitkan di Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-v1.0.${{ github.run_number }}
+          name: TV Nusantara APK 1.0.${{ github.run_number }}
+          body: |
+            Unduh **TV-Nusantara.apk** di bawah lalu pasang di HP Android (izinkan "Instal aplikasi tidak dikenal").
+            Aplikasi membuka server: `${{ env.SERVER_URL }}`
+          files: TV-Nusantara.apk
+          make_latest: true

@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>TV Nusantara</title>
+  <style>
+    html, body { margin: 0; height: 100%; }
+    body {
+      display: grid; place-items: center; padding: 24px; box-sizing: border-box; text-align: center;
+      font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #e7ecf5;
+      background: radial-gradient(600px 400px at 0% 0%, rgba(229, 32, 58, .25), transparent 65%),
+        radial-gradient(600px 400px at 100% 100%, rgba(79, 70, 229, .25), transparent 65%), #0a0e17;
+    }
+    h1 { font-size: 20px; margin: 16px 0 8px; }
+    p { color: #8d98b3; margin: 0 0 20px; max-width: 420px; }
+    code { color: #e7ecf5; background: rgba(255, 255, 255, .08); padding: 2px 6px; border-radius: 6px; word-break: break-all; }
+    button {
+      border: 0; border-radius: 12px; padding: 12px 22px; font: inherit; font-weight: 700; color: #fff;
+      background: linear-gradient(135deg, #e5203a, #8b1fd6); box-shadow: 0 10px 24px -10px rgba(229, 32, 58, .8);
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <svg width="72" height="72" viewBox="0 0 32 32"><rect x="2" y="6" width="28" height="19" rx="4" fill="#e5203a"/><path d="M13 11v9l8-4.5z" fill="#fff"/></svg>
+    <h1>Tidak bisa terhubung ke server</h1>
+    <p>Pastikan server TV Nusantara sedang berjalan dan HP terhubung ke jaringan yang sama.<br>Alamat server: <code>__SERVER_URL__</code></p>
+    <button type="button" onclick="location.href='__SERVER_URL__'">Coba lagi</button>
+  </main>
+</body>
+</html>

@@ -1,0 +1,5 @@
+node_modules/
+android/
+build/
+assets/
+capacitor.config.json
