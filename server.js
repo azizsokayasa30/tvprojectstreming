@@ -21,6 +21,7 @@ const FILES = {
   userSessions: path.join(DATA_DIR, 'user-sessions.json'),
 };
 const PORT = Number(process.env.PORT) || 8080;
+const DEV = process.argv.includes('--dev');
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36';
 const YT_CACHE_MS = 10 * 60 * 1000;
 const SESSION_MS = 12 * 60 * 60 * 1000;
@@ -73,7 +74,7 @@ function defaultConfig() {
       accent: '#e5203a',
       theme: 'dark',
       welcomeTitle: 'Nonton TV Indonesia, live.',
-      welcomeText: 'Pilih channel di bawah atau dari daftar di samping.',
+      welcomeText: 'Pilih channel dari daftar untuk mulai menonton.',
       announcement: { enabled: false, text: '', tone: 'info' },
       sidebarPosition: 'right',
       showQuickGrid: true,
@@ -711,8 +712,36 @@ function resolveStatic(urlPath) {
   return null;
 }
 
+// ---------- Mode pengembangan: halaman memuat ulang sendiri saat file diedit ----------
+
+const reloadClients = new Set();
+const DEV_SNIPPET = `<script>(() => {
+  let lost = false;
+  const es = new EventSource('/__dev/reload');
+  es.onmessage = () => location.reload();
+  es.onerror = () => { lost = true; };
+  es.onopen = () => { if (lost) location.reload(); };
+})();</script>`;
+
+if (DEV) {
+  let timer = null;
+  const notify = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => { for (const c of reloadClients) c.write('data: reload\n\n'); }, 150);
+  };
+  for (const target of ['index.html', 'assets', 'admin']) fs.watch(path.join(ROOT, target), notify);
+  setInterval(() => { for (const c of reloadClients) c.write(': ping\n\n'); }, 25000).unref();
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
+  if (DEV && url.pathname === '/__dev/reload') {
+    res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
+    res.write(': ok\n\n');
+    reloadClients.add(res);
+    req.on('close', () => reloadClients.delete(res));
+    return;
+  }
   if (url.pathname.startsWith('/api/')) {
     try { await handleApi(req, res, url); }
     catch (err) { sendJson(res, 400, { error: String(err.message || err) }); }
@@ -735,7 +764,7 @@ const server = http.createServer(async (req, res) => {
       'Cache-Control': 'no-cache',
       'X-Content-Type-Options': 'nosniff',
     });
-    res.end(data);
+    res.end(DEV && file.endsWith('.html') ? data.toString().replace('</body>', DEV_SNIPPET + '</body>') : data);
   });
 });
 
@@ -746,4 +775,5 @@ server.listen(PORT, () => {
     .filter((n) => n && n.family === 'IPv4' && !n.internal)
     .map((n) => `http://${n.address}:${PORT}`);
   if (lan.length) console.log(`Dari HP / aplikasi (satu Wi-Fi): ${lan.join('  ')}`);
+  if (DEV) console.log('Mode pengembangan: halaman di semua perangkat memuat ulang otomatis saat file diedit.');
 });

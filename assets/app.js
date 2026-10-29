@@ -6,7 +6,7 @@
   const FALLBACK_CONFIG = {
     site: {
       name: 'TEKDROID TV', logoUrl: '', accent: '#e5203a', theme: 'dark',
-      welcomeTitle: 'Nonton TV Indonesia, live.', welcomeText: 'Pilih channel di bawah atau dari daftar di samping.',
+      welcomeTitle: 'Nonton TV Indonesia, live.', welcomeText: 'Pilih channel dari daftar untuk mulai menonton.',
       announcement: { enabled: false, text: '', tone: 'info' }, sidebarPosition: 'right',
       showQuickGrid: true, quickGridCount: 18, defaultCategory: 'Semua', footerText: '',
     },

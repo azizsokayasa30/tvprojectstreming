@@ -708,7 +708,7 @@ body:not(.light) ::-webkit-scrollbar-thumb:hover { background-color: rgba(148, 1
 body:not(.light) ::-webkit-scrollbar-track { background: transparent; }
 
 @media (max-width: 960px) {
-  .layout, .layout.sidebar-left { grid-template-columns: 1fr; padding: 12px; gap: 12px; }
+  .layout, .layout.sidebar-left { grid-template-columns: minmax(0, 1fr); padding: 12px; gap: 12px; }
   .layout.sidebar-left .sidebar { order: 0; }
   .sub-btn span { display: none; }
   .topbar { gap: 10px; }
@@ -718,4 +718,69 @@ body:not(.light) ::-webkit-scrollbar-track { background: transparent; }
   .volume, .ctl-title { display: none; }
   .brand-name { display: none; }
   .topbar { padding: 10px 12px; }
+}
+
+/* HP: satu kolom, tanpa kotak bertumpuk dan tanpa scroll di dalam scroll */
+@media (max-width: 720px) {
+  .topbar {
+    position: static;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: max(10px, env(safe-area-inset-top)) 14px 12px;
+    border-bottom: 0;
+  }
+  .brand { margin-right: auto; gap: 8px; }
+  .brand-mark svg { width: 30px; height: 30px; }
+  .brand-name { display: inline; font-size: 16px; }
+  .search { order: 3; flex: 1 0 100%; max-width: none; margin: 0; }
+  .search input { padding: 10px 0; }
+  .theme-btn, .account-btn { width: 36px; height: 36px; }
+
+  .layout, .layout.sidebar-left { padding: 0 0 12px; gap: 0; }
+  .player { border-radius: 0; }
+  body .stage .player { box-shadow: none; }
+
+  /* Beranda: sapaan singkat, daftar channel langsung di bawahnya */
+  .player[data-mode="idle"] { aspect-ratio: auto; background: none; overflow: visible; }
+  .player[data-mode="idle"] .welcome { position: static; background: none; padding: 4px 16px 14px; overflow: visible; }
+  .welcome h1 { font-size: 22px; }
+  .welcome p { margin: 0; font-size: 13.5px; }
+  .welcome-extra, .quick { display: none; }
+
+  /* Channel premium / Vidio: tinggi mengikuti isi agar teks tidak terpotong */
+  .player[data-mode="paywall"], .player[data-mode="external"] { aspect-ratio: auto; }
+  .external, .paywall { position: relative; padding: 28px 18px; }
+  .external .logo, .paywall .logo { width: 88px; height: 52px; margin-bottom: 10px; }
+  .external h3, .paywall h3 { font-size: 18px; }
+  .external p, .paywall p { font-size: 13px; margin-bottom: 14px; }
+  .message p { font-size: 13px; margin: 4px 0 12px; }
+
+  #pipBtn, .fs-corner { display: none; }
+  .controls { padding: 24px 6px 4px; }
+  .quality-menu { max-height: 170px; overflow-y: auto; }
+
+  .infobar { margin: 0; padding: 10px 14px; gap: 10px; flex-wrap: nowrap; border-radius: 0; border-width: 0 0 1px; }
+  body .stage .infobar { background: none; box-shadow: none; backdrop-filter: none; }
+  .now { flex: 1; gap: 10px; }
+  .now > div { min-width: 0; }
+  .now-logo .logo { width: 52px; height: 32px; }
+  .now h2, .now p { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .now h2 { font-size: 16px; }
+  .now p { font-size: 12px; }
+  .actions { flex: none; flex-wrap: nowrap; gap: 6px; }
+  .actions .field { display: none; }
+  #fsInfoBtn { font-size: 0; gap: 0; padding: 8px 10px; }
+  .hint { display: none; }
+
+  body .layout .sidebar { background: none; border: 0; border-radius: 0; box-shadow: none; backdrop-filter: none; }
+  .chips {
+    position: sticky; top: 0; z-index: 5;
+    padding: 10px 14px;
+    background: color-mix(in srgb, var(--bg) 90%, transparent);
+    backdrop-filter: blur(12px);
+    scrollbar-width: none;
+  }
+  .chips::-webkit-scrollbar { display: none; }
+  .list { height: auto; overflow: visible; padding: 4px 8px; }
+  .status { border-top: 0; padding: 8px 16px; }
 }
