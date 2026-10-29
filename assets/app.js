@@ -18,6 +18,7 @@
   };
   const SPLASH_MIN_MS = 2200;
   const PING_EVERY_MS = 3000;
+  const LIVE_EVERY_MS = 60000;
   const PING_TIMEOUT_MS = 5000;
   const CATEGORY_ORDER = ['Semua', 'Nasional', 'Berita', 'TVRI Daerah', 'Daerah & Lainnya', 'Religi', 'Anak & Edukasi'];
   const REGION_NAMES = {
@@ -45,24 +46,25 @@
     pipBtn: $('pipBtn'), fsBtn: $('fsBtn'), fsCorner: $('fsCorner'),
     infobar: $('infobar'), nowLogo: $('nowLogo'), nowName: $('nowName'), nowMeta: $('nowMeta'),
     qualitySelect: $('qualitySelect'),
-    copyBtn: $('copyBtn'), fsInfoBtn: $('fsInfoBtn'), hint: $('hint'),
+    copyBtn: $('copyBtn'), fsInfoBtn: $('fsInfoBtn'),
     search: $('search'), list: $('list'), status: $('status'),
     listHead: $('listHead'), catTitle: $('catTitle'), catCount: $('catCount'),
     drawer: $('drawer'), drawerNav: $('drawerNav'), drawerClose: $('drawerClose'),
-    toast: $('toast'), brandLink: $('brandLink'), brandMark: $('brandMark'), brandName: $('brandName'),
+    toast: $('toast'), pullRefresh: $('pullRefresh'), brandLink: $('brandLink'), brandMark: $('brandMark'), brandName: $('brandName'),
     welcomeTitle: $('welcomeTitle'), welcomeText: $('welcomeText'), announce: $('announce'),
     layout: $('layout'), footer: $('footer'),
     paywallLogo: $('paywallLogo'), paywallTitle: $('paywallTitle'), paywallForm: $('paywallForm'),
     paywallCode: $('paywallCode'), paywallPlans: $('paywallPlans'),
     subscribeBtn: $('subscribeBtn'), subscribeText: $('subscribeText'), subModal: $('subModal'), subClose: $('subClose'),
     accessStatus: $('accessStatus'), plans: $('plans'), payMethods: $('payMethods'), payInstructions: $('payInstructions'),
-    redeemForm: $('redeemForm'), redeemCode: $('redeemCode'), themeBtn: $('themeBtn'),
+    redeemForm: $('redeemForm'), redeemCode: $('redeemCode'),
     ping: $('ping'), pingValue: $('pingValue'), clock: $('clock'),
     auth: $('auth'), authMark: $('authMark'), authName: $('authName'), authTitle: $('authTitle'), authSub: $('authSub'),
     authTabs: $('authTabs'), loginForm: $('loginForm'), registerForm: $('registerForm'), authClose: $('authClose'),
     loginBtn: $('loginBtn'), account: $('account'), accountBtn: $('accountBtn'), accountAvatar: $('accountAvatar'),
     accountMenu: $('accountMenu'), accountName: $('accountName'), accountLogin: $('accountLogin'), accountPlan: $('accountPlan'),
     passBtn: $('passBtn'), logoutBtn: $('logoutBtn'), passModal: $('passModal'), passClose: $('passClose'), passForm: $('passForm'),
+    settingsBtn: $('settingsBtn'), settingsModal: $('settingsModal'), settingsClose: $('settingsClose'), themeChoice: $('themeChoice'),
     splash: $('splash'), splashMark: $('splashMark'), splashName: $('splashName'), splashVersion: $('splashVersion'),
   };
 
@@ -91,6 +93,7 @@
     settings: FALLBACK_CONFIG,
     nationalTvgIds: new Set(),
     user: null,
+    live: null,
   };
 
   const activeAccess = () => {
@@ -356,12 +359,37 @@
       text.innerHTML = `<span class="item-name">${escapeHtml(ch.name)}</span>` +
         `<span class="item-sub">${escapeHtml(ch.groups[0])}${tags.join('')}</span>`;
       btn.appendChild(text);
-      btn.insertAdjacentHTML('beforeend', '<span class="eq"><i></i><i></i><i></i></span>');
+      btn.classList.toggle('live', channelLive(ch));
+      btn.insertAdjacentHTML('beforeend', '<span class="live-tag"><i></i>LIVE</span><span class="eq"><i></i><i></i><i></i></span>');
       btn.onclick = () => navigate(ch.slug);
       li.appendChild(btn);
       frag.appendChild(li);
     }
     el.list.appendChild(frag);
+  }
+
+  // Channel dari server punya id; channel playlist dicocokkan lewat URL stream-nya.
+  function channelLive(ch) {
+    const live = state.live;
+    if (!live) return false;
+    if (ch.id) return live.channels[ch.id] === true;
+    const src = ch.sources[0];
+    return Boolean(src && live.playlist[src.url]);
+  }
+
+  async function refreshLive() {
+    if (!document.hidden) {
+      try {
+        const res = await fetch(`${basePath}api/live`, { cache: 'no-store' });
+        if (res.ok) state.live = await res.json();
+      } catch { /* offline */ }
+      for (const b of el.list.querySelectorAll('.item')) {
+        const ch = state.bySlug.get(b.dataset.slug);
+        if (ch) b.classList.toggle('live', channelLive(ch));
+      }
+    }
+    // Selama pengecekan pertama di server belum selesai, tanya lebih sering agar badge cepat muncul.
+    setTimeout(refreshLive, state.live && state.live.checkedAt ? LIVE_EVERY_MS : 10000);
   }
 
   function highlightActive() {
@@ -578,7 +606,6 @@
     el.paywallLogo.appendChild(logoBox(ch));
     el.paywallTitle.textContent = `${ch.name} — Premium`;
     el.paywallPlans.hidden = !state.settings.payment.enabled;
-    el.hint.textContent = 'Channel premium hanya bisa ditonton dengan kode akses aktif.';
   }
 
   async function redeem(code, input) {
@@ -740,6 +767,19 @@
       el.passModal.hidden = false;
       el.passForm.querySelector('input').focus();
     };
+    el.settingsBtn.onclick = () => {
+      el.accountMenu.hidden = true;
+      el.settingsModal.hidden = false;
+      el.themeChoice.querySelector('[aria-checked="true"]').focus();
+    };
+    el.settingsClose.onclick = () => { el.settingsModal.hidden = true; };
+    el.settingsModal.addEventListener('click', (e) => { if (e.target === el.settingsModal) el.settingsModal.hidden = true; });
+    el.themeChoice.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-theme]');
+      if (!b) return;
+      store.set('theme', b.dataset.theme);
+      applyTheme(b.dataset.theme);
+    });
     el.passClose.onclick = () => { el.passModal.hidden = true; };
     el.passModal.addEventListener('click', (e) => { if (e.target === el.passModal) el.passModal.hidden = true; });
     el.passForm.addEventListener('submit', (e) => {
@@ -1058,13 +1098,6 @@
     el.nowName.textContent = ch.name;
     el.ctlTitle.textContent = ch.name;
     el.nowMeta.textContent = `${ch.groups.join(' · ')} — ${sourceLabel(src)}`;
-    const hints = {
-      hls: 'Pintasan: F = layar penuh · M = suara · Spasi = jeda · ↑/↓ = ganti channel · resolusi lewat ikon ⚙ atau menu "Resolusi".',
-      iframe: 'Diputar lewat player resmi stasiun (bisa diawali iklan). Resolusi diatur lewat ikon ⚙ di dalam player. F = layar penuh.',
-      youtube: 'Diputar dari live YouTube resmi stasiun. Resolusi diatur lewat ikon ⚙ di player YouTube. F = layar penuh.',
-      vidio: 'Pemegang hak siar channel ini tidak mengizinkan embed, jadi siarannya dibuka di Vidio.',
-    };
-    el.hint.textContent = hints[src.type];
     el.fsInfoBtn.hidden = src.type === 'vidio';
   }
 
@@ -1143,6 +1176,85 @@
   }
 
   // ---------- Event ----------
+
+  function bindPullToRefresh() {
+    const bar = el.pullRefresh;
+    if (!bar) return;
+    const label = bar.querySelector('b');
+    const THRESHOLD = 72;
+    let startX = 0;
+    let startY = 0;
+    let active = false;
+    let distance = 0;
+
+    function blocked(target) {
+      if (!target || !target.closest) return true;
+      if (!el.auth.hidden || !el.drawer.hidden || !el.subModal.hidden || !el.passModal.hidden) return true;
+      return !!target.closest('input, textarea, select, video, .controls, .volume, .quality-menu, .account-menu');
+    }
+
+    function scrolledAway(target) {
+      let node = target instanceof Element ? target : null;
+      while (node && node !== document.body) {
+        const style = getComputedStyle(node);
+        if (/(auto|scroll)/.test(style.overflowY) && node.scrollHeight > node.clientHeight + 4 && node.scrollTop > 2) return true;
+        node = node.parentElement;
+      }
+      return (window.scrollY || document.documentElement.scrollTop || 0) > 2;
+    }
+
+    function reset() {
+      active = false;
+      distance = 0;
+      bar.classList.remove('show', 'ready', 'loading');
+      bar.style.transform = '';
+      label.textContent = 'Tarik untuk menyegarkan';
+    }
+
+    document.addEventListener('touchstart', (e) => {
+      if (e.touches.length !== 1 || blocked(e.target) || scrolledAway(e.target)) {
+        active = false;
+        return;
+      }
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      distance = 0;
+      active = true;
+    }, { passive: true });
+
+    document.addEventListener('touchmove', (e) => {
+      if (!active) return;
+      const dx = e.touches[0].clientX - startX;
+      const dy = e.touches[0].clientY - startY;
+      if (distance === 0 && Math.abs(dx) > Math.abs(dy)) {
+        active = false;
+        return;
+      }
+      if (dy <= 0 || scrolledAway(e.target)) {
+        reset();
+        return;
+      }
+      distance = Math.min(dy * 0.45, 108);
+      bar.classList.add('show');
+      bar.style.transform = `translateY(${distance}px)`;
+      const ready = distance >= THRESHOLD;
+      bar.classList.toggle('ready', ready);
+      label.textContent = ready ? 'Lepas untuk menyegarkan' : 'Tarik untuk menyegarkan';
+      if (e.cancelable) e.preventDefault();
+    }, { passive: false });
+
+    document.addEventListener('touchend', () => {
+      if (!active) return;
+      if (distance >= THRESHOLD) {
+        bar.classList.add('loading');
+        label.textContent = 'Menyegarkan…';
+        location.reload();
+        return;
+      }
+      reset();
+    });
+    document.addEventListener('touchcancel', reset);
+  }
 
   function bindEvents() {
     const v = el.video;
@@ -1228,11 +1340,11 @@
 
     el.paywallForm.addEventListener('submit', (e) => { e.preventDefault(); redeem(el.paywallCode.value, el.paywallCode); });
     el.redeemForm.addEventListener('submit', (e) => { e.preventDefault(); redeem(el.redeemCode.value, el.redeemCode); });
-    el.themeBtn.onclick = toggleTheme;
     el.paywallPlans.onclick = openSubscribe;
     el.subscribeBtn.onclick = openSubscribe;
     el.subClose.onclick = () => { el.subModal.hidden = true; };
     el.subModal.addEventListener('click', (e) => { if (e.target === el.subModal) el.subModal.hidden = true; });
+    bindPullToRefresh();
     el.listHead.onclick = openDrawer;
     el.drawerClose.onclick = closeDrawer;
     el.drawer.addEventListener('click', (e) => { if (e.target === el.drawer) closeDrawer(); });
@@ -1242,6 +1354,7 @@
         if (!el.drawer.hidden) { closeDrawer(); return; }
         if (!el.subModal.hidden) { el.subModal.hidden = true; return; }
         if (!el.passModal.hidden) { el.passModal.hidden = true; return; }
+        if (!el.settingsModal.hidden) { el.settingsModal.hidden = true; return; }
         if (!el.accountMenu.hidden) { el.accountMenu.hidden = true; return; }
       }
       if (!el.auth.hidden || !el.drawer.hidden) return;
@@ -1317,17 +1430,11 @@
     const light = theme === 'light';
     document.body.classList.toggle('light', light);
     document.querySelector('meta[name="theme-color"]').content = light ? '#ffffff' : '#0a0e17';
-    const label = light ? 'Ganti ke mode gelap' : 'Ganti ke mode terang';
-    el.themeBtn.title = label;
-    el.themeBtn.setAttribute('aria-label', label);
-    el.themeBtn.querySelector('use').setAttribute('href', light ? '#i-moon' : '#i-sun');
-  }
-
-  function toggleTheme() {
-    const next = document.body.classList.contains('light') ? 'dark' : 'light';
-    store.set('theme', next);
-    applyTheme(next);
-    toast(next === 'light' ? 'Mode terang aktif' : 'Mode gelap aktif');
+    for (const b of el.themeChoice.querySelectorAll('[data-theme]')) {
+      const on = b.dataset.theme === (light ? 'light' : 'dark');
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-checked', String(on));
+    }
   }
 
   async function measurePing() {
@@ -1422,6 +1529,7 @@
     route();
     autoStart();
     loadPlaylist();
+    if (config) refreshLive();
     startPing();
     startClock();
   }

@@ -278,7 +278,7 @@ function publicView(cfg) {
       }
       : { enabled: false },
     channels: cfg.channels.filter((c) => c.enabled).map((c) => ({
-      name: c.name, slug: c.slug, tvgId: c.tvgId, logo: c.logo, groups: c.groups, aliases: c.aliases,
+      id: c.id, name: c.name, slug: c.slug, tvgId: c.tvgId, logo: c.logo, groups: c.groups, aliases: c.aliases,
       premium: paid && c.premium,
       sources: paid && c.premium ? [] : c.sources,
     })),
@@ -430,12 +430,137 @@ async function youtubeLive(channelId) {
   if (hit && Date.now() - hit.at < YT_CACHE_MS) return hit.data;
   const res = await fetch(`https://www.youtube.com/channel/${channelId}/live`, {
     headers: { 'User-Agent': UA, 'Accept-Language': 'en' },
+    signal: AbortSignal.timeout(15000),
   });
   const html = await res.text();
   const videoId = (html.match(/<link rel="canonical" href="https:\/\/www\.youtube\.com\/watch\?v=([\w-]{11})"/) || [])[1] || null;
   const data = { videoId, live: Boolean(videoId) && /"isLive":true/.test(html) };
   ytCache.set(channelId, { at: Date.now(), data });
   return data;
+}
+
+// ---------- Status live channel ----------
+// Dicek hanya saat ada penonton yang meminta (/api/live), paling sering sekali per LIVE_CHECK_MS.
+
+const LIVE_CHECK_MS = 5 * 60 * 1000;
+const LIVE_TIMEOUT_MS = 8000;
+const LIVE_CONCURRENCY = 8;
+const liveState = { startedAt: 0, checkedAt: 0, running: false, channels: {}, playlist: {} };
+
+// Membaca awal respons saja: sebagian URL playlist berupa stream MPEG-TS yang tidak pernah selesai.
+async function fetchHead(target, maxBytes) {
+  const res = await fetch(target, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(LIVE_TIMEOUT_MS) });
+  if (!res.ok || !res.body) {
+    if (res.body) res.body.cancel().catch(() => {});
+    return null;
+  }
+  const reader = res.body.getReader();
+  const chunks = [];
+  let size = 0;
+  while (size < maxBytes) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    size += value.length;
+  }
+  reader.cancel().catch(() => {});
+  return { url: res.url, buf: Buffer.concat(chunks) };
+}
+
+async function hlsLive(target, depth = 0) {
+  const r = await fetchHead(target, 64 * 1024);
+  if (!r || !r.buf.length) return false;
+  if (r.buf[0] === 0x47) return true; // langsung stream MPEG-TS
+  const text = r.buf.toString('utf8').replace(/^\uFEFF/, '').trimStart();
+  if (!text.startsWith('#EXTM3U')) return false;
+  if (text.includes('#EXTINF')) return true;
+  const variant = text.split(/\r?\n/).map((l) => l.trim()).find((l) => l && !l.startsWith('#'));
+  return Boolean(variant) && depth < 2 && hlsLive(new URL(variant, r.url).href, depth + 1);
+}
+
+async function sourceLive(s) {
+  try {
+    if (s.type === 'hls') return await hlsLive(s.url);
+    if (s.type === 'youtube') return (await youtubeLive(s.channelId)).live;
+    if (s.type === 'vidio') {
+      const r = await fetchHead(`https://www.vidio.com/live/${s.id}`, 1024 * 1024);
+      return Boolean(r) && r.buf.includes('"isLiveBroadcast":true');
+    }
+    // Player iframe tidak bisa diperiksa isinya; cukup pastikan halamannya bisa dibuka.
+    return Boolean(await fetchHead(s.url, 1024));
+  } catch {
+    return false;
+  }
+}
+
+// Aturan penyaringan sama dengan ingestPlaylist() di assets/app.js.
+async function playlistUrls() {
+  const { playlistEnabled, playlistUrl, hiddenPlaylist } = config.streaming;
+  if (!playlistEnabled || !playlistUrl) return [];
+  const r = await fetchHead(playlistUrl, 8 * 1024 * 1024).catch(() => null);
+  if (!r) return [];
+  const national = new Set(config.channels.map((c) => c.tvgId).filter(Boolean));
+  const hidden = new Set(hiddenPlaylist);
+  const out = new Set();
+  let attrs = null;
+  for (const raw of r.buf.toString('utf8').split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line) continue;
+    if (line.startsWith('#EXTINF')) {
+      attrs = {};
+      for (const m of line.matchAll(/([\w-]+)="([^"]*)"/g)) attrs[m[1]] = m[2];
+      continue;
+    }
+    if (line.startsWith('#') || !attrs) continue;
+    const tvgId = attrs['tvg-id'] || '';
+    const [base, feed = ''] = tvgId.split('@');
+    const skip = !/\.id$/.test(base)
+      || (national.has(base) && ['SD', 'HD', 'FHD', ''].includes(feed))
+      || hidden.has(tvgId)
+      || attrs['http-referrer'] || attrs['http-user-agent']
+      || (!/\.m3u8?(\?|$)/i.test(line) && !/\/play\//.test(line));
+    if (!skip) out.add(line);
+    attrs = null;
+  }
+  return [...out];
+}
+
+async function runPool(items, worker) {
+  let i = 0;
+  const next = async () => { while (i < items.length) await worker(items[i++]); };
+  await Promise.all(Array.from({ length: LIVE_CONCURRENCY }, next));
+}
+
+async function refreshLive() {
+  liveState.running = true;
+  liveState.startedAt = Date.now();
+  try {
+    const channels = config.channels.filter((c) => c.enabled);
+    const urls = await playlistUrls();
+    const tasks = [
+      ...channels.map((c) => async () => {
+        let live = false;
+        for (const s of c.sources) if ((live = await sourceLive(s))) break;
+        liveState.channels[c.id] = live;
+      }),
+      ...urls.map((u) => async () => { liveState.playlist[u] = await sourceLive({ type: 'hls', url: u }); }),
+    ];
+    await runPool(tasks, (task) => task());
+    const ids = new Set(channels.map((c) => c.id));
+    const keep = new Set(urls);
+    for (const id of Object.keys(liveState.channels)) if (!ids.has(id)) delete liveState.channels[id];
+    for (const u of Object.keys(liveState.playlist)) if (!keep.has(u)) delete liveState.playlist[u];
+    liveState.checkedAt = Date.now();
+  } finally {
+    liveState.running = false;
+  }
+}
+
+function liveView() {
+  if (!liveState.running && Date.now() - liveState.startedAt > LIVE_CHECK_MS) {
+    refreshLive().catch((err) => console.warn('Cek status live gagal:', err));
+  }
+  return { checkedAt: liveState.checkedAt, channels: liveState.channels, playlist: liveState.playlist };
 }
 
 // ---------- HTTP ----------
@@ -540,6 +665,8 @@ async function handleApi(req, res, url) {
   }
 
   if (!p.startsWith('/api/admin/') && loginRequired) return sendJson(res, 401, { error: 'Silakan masuk terlebih dahulu.' });
+
+  if (p === '/api/live' && req.method === 'GET') return sendJson(res, 200, liveView());
 
   if (p === '/api/youtube-live' && req.method === 'GET') {
     const channel = url.searchParams.get('channel') || '';

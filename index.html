@@ -94,7 +94,6 @@
     </label>
     <span class="ping" id="ping" role="status" title="Ping ke server" hidden><i></i><b id="pingValue">… ms</b></span>
     <time class="clock" id="clock">--:--</time>
-    <button class="theme-btn" id="themeBtn" type="button" title="Ganti ke mode terang" aria-label="Ganti ke mode terang"><svg><use href="#i-sun"/></svg></button>
     <button class="btn sub-btn" id="subscribeBtn" type="button" hidden><svg><use href="#i-star"/></svg> <span id="subscribeText">Berlangganan</span></button>
     <button class="btn ghost login-btn" id="loginBtn" type="button" hidden><svg><use href="#i-user"/></svg> Masuk</button>
     <div class="account" id="account" hidden>
@@ -105,6 +104,7 @@
           <span id="accountLogin"></span>
         </div>
         <div class="account-plan" id="accountPlan"></div>
+        <button type="button" id="settingsBtn"><svg><use href="#i-gear"/></svg> Pengaturan</button>
         <button type="button" id="passBtn"><svg><use href="#i-key"/></svg> Ganti password</button>
         <button type="button" id="logoutBtn"><svg><use href="#i-logout"/></svg> Keluar</button>
       </div>
@@ -256,6 +256,26 @@
         <p class="auth-error" hidden></p>
         <button class="btn" type="submit">Simpan password</button>
       </form>
+    </div>
+  </div>
+
+  <div class="pull-refresh" id="pullRefresh" aria-hidden="true">
+    <span class="pull-pill"><i></i><b>Tarik untuk menyegarkan</b></span>
+  </div>
+
+  <div class="modal" id="settingsModal" hidden>
+    <div class="modal-card narrow" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <header>
+        <h2 id="settingsTitle">Pengaturan</h2>
+        <button class="ctl" id="settingsClose" type="button" aria-label="Tutup">✕</button>
+      </header>
+      <div class="modal-body">
+        <h3>Tampilan</h3>
+        <div class="theme-choice" id="themeChoice" role="radiogroup" aria-label="Tema">
+          <button type="button" role="radio" data-theme="dark"><svg><use href="#i-moon"/></svg> Mode gelap</button>
+          <button type="button" role="radio" data-theme="light"><svg><use href="#i-sun"/></svg> Mode terang</button>
+        </div>
+      </div>
     </div>
   </div>
 
