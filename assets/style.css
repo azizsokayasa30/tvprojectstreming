@@ -532,6 +532,32 @@ body.light .tag.gold { color: #8a5a00; }
   color: var(--text);
 }
 .theme-btn:hover { border-color: var(--accent); color: var(--accent-2); }
+
+.ping {
+  --ping: #94a3b8;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 82px;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ping i { width: 8px; height: 8px; border-radius: 50%; background: var(--ping); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ping) 25%, transparent); }
+.ping b { font-weight: 600; }
+.ping[data-level="good"] { --ping: #22c55e; }
+.ping[data-level="fair"] { --ping: #f59e0b; }
+.ping[data-level="bad"] { --ping: #ef4444; }
+.ping[data-level="off"] { --ping: #ef4444; color: #ef4444; }
+body:not(.light) .ping { background: rgba(255, 255, 255, .04); border-color: rgba(148, 163, 205, .14); }
 .sub-btn { align-self: center; flex: none; }
 .sub-btn.active { background: #1f8f55; }
 .sub-btn.active:hover { background: #26a865; }
@@ -771,16 +797,19 @@ body:not(.light) ::-webkit-scrollbar-track { background: transparent; }
   .topbar {
     position: static;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 10px 8px;
     padding: max(10px, env(safe-area-inset-top)) 14px 12px;
     border-bottom: 0;
   }
-  .brand { margin-right: auto; gap: 8px; }
-  .brand-mark svg { width: 30px; height: 30px; }
-  .brand-name { display: inline; font-size: 16px; }
+  /* basis 0: merek mengisi sisa ruang dan terpotong lebih dulu, tombol tidak turun baris */
+  .brand { flex: 1 1 0; min-width: 0; gap: 7px; }
+  .brand-mark { flex: none; }
+  .brand-mark svg { width: 28px; height: 28px; }
+  .brand-name { display: inline; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; letter-spacing: .3px; }
   .search { order: 3; flex: 1 0 100%; max-width: none; margin: 0; }
   .search input { padding: 10px 0; }
   .theme-btn, .account-btn, .menu-btn { width: 36px; height: 36px; }
+  .ping { min-width: 0; height: 36px; padding: 0 9px; gap: 5px; font-size: 12px; }
 
   .layout, .layout.sidebar-left { padding: 0 0 12px; gap: 0; }
   .player { border-radius: 0; }

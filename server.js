@@ -467,6 +467,11 @@ async function handleApi(req, res, url) {
   const isJson = (req.headers['content-type'] || '').startsWith('application/json');
   if (req.method !== 'GET' && !isJson) return sendJson(res, 415, { error: 'Gunakan application/json' });
 
+  if (p === '/api/ping') {
+    res.writeHead(204, { 'Cache-Control': 'no-store' });
+    return res.end();
+  }
+
   // --- Akun penonton ---
   const user = currentUser(req);
   const loginRequired = config.auth.requireLogin && !user;

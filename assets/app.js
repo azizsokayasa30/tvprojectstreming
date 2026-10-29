@@ -16,6 +16,8 @@
     },
     payment: { enabled: false },
   };
+  const PING_EVERY_MS = 3000;
+  const PING_TIMEOUT_MS = 5000;
   const CATEGORY_ORDER = ['Semua', 'Nasional', 'Berita', 'TVRI Daerah', 'Daerah & Lainnya', 'Religi', 'Anak & Edukasi'];
   const REGION_NAMES = {
     'Central Java': 'Jawa Tengah', 'East Java': 'Jawa Timur', 'West Java': 'Jawa Barat',
@@ -54,6 +56,7 @@
     subscribeBtn: $('subscribeBtn'), subscribeText: $('subscribeText'), subModal: $('subModal'), subClose: $('subClose'),
     accessStatus: $('accessStatus'), plans: $('plans'), payMethods: $('payMethods'), payInstructions: $('payInstructions'),
     redeemForm: $('redeemForm'), redeemCode: $('redeemCode'), themeBtn: $('themeBtn'),
+    ping: $('ping'), pingValue: $('pingValue'),
     auth: $('auth'), authMark: $('authMark'), authName: $('authName'), authTitle: $('authTitle'), authSub: $('authSub'),
     authTabs: $('authTabs'), loginForm: $('loginForm'), registerForm: $('registerForm'), authClose: $('authClose'),
     loginBtn: $('loginBtn'), account: $('account'), accountBtn: $('accountBtn'), accountAvatar: $('accountAvatar'),
@@ -1302,6 +1305,32 @@
     toast(next === 'light' ? 'Mode terang aktif' : 'Mode gelap aktif');
   }
 
+  async function measurePing() {
+    if (document.hidden) return;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), PING_TIMEOUT_MS);
+    const start = performance.now();
+    let ms = null;
+    try {
+      const res = await fetch(`${basePath}api/ping`, { cache: 'no-store', signal: ctrl.signal });
+      if (res.ok) ms = Math.round(performance.now() - start);
+    } catch { /* offline atau timeout */ }
+    clearTimeout(timer);
+    const level = ms === null ? 'off' : ms < 100 ? 'good' : ms < 300 ? 'fair' : 'bad';
+    el.ping.dataset.level = level;
+    el.pingValue.textContent = ms === null ? 'Offline' : `${ms} ms`;
+    el.ping.title = ms === null ? 'Server tidak merespons' : `Ping ke server: ${ms} ms`;
+  }
+
+  function startPing() {
+    el.ping.hidden = false;
+    measurePing();
+    setInterval(measurePing, PING_EVERY_MS);
+    document.addEventListener('visibilitychange', measurePing);
+    addEventListener('online', measurePing);
+    addEventListener('offline', measurePing);
+  }
+
   async function init() {
     // Terapkan pilihan tema pengunjung sebelum menunggu server agar halaman tidak berkedip.
     const savedTheme = store.get('theme', null);
@@ -1331,6 +1360,7 @@
     renderQuickGrid();
     route();
     loadPlaylist();
+    startPing();
   }
 
   init();
