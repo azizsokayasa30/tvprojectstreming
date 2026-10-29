@@ -16,6 +16,7 @@
     },
     payment: { enabled: false },
   };
+  const SPLASH_MIN_MS = 2200;
   const PING_EVERY_MS = 3000;
   const PING_TIMEOUT_MS = 5000;
   const CATEGORY_ORDER = ['Semua', 'Nasional', 'Berita', 'TVRI Daerah', 'Daerah & Lainnya', 'Religi', 'Anak & Edukasi'];
@@ -56,12 +57,13 @@
     subscribeBtn: $('subscribeBtn'), subscribeText: $('subscribeText'), subModal: $('subModal'), subClose: $('subClose'),
     accessStatus: $('accessStatus'), plans: $('plans'), payMethods: $('payMethods'), payInstructions: $('payInstructions'),
     redeemForm: $('redeemForm'), redeemCode: $('redeemCode'), themeBtn: $('themeBtn'),
-    ping: $('ping'), pingValue: $('pingValue'),
+    ping: $('ping'), pingValue: $('pingValue'), clock: $('clock'),
     auth: $('auth'), authMark: $('authMark'), authName: $('authName'), authTitle: $('authTitle'), authSub: $('authSub'),
     authTabs: $('authTabs'), loginForm: $('loginForm'), registerForm: $('registerForm'), authClose: $('authClose'),
     loginBtn: $('loginBtn'), account: $('account'), accountBtn: $('accountBtn'), accountAvatar: $('accountAvatar'),
     accountMenu: $('accountMenu'), accountName: $('accountName'), accountLogin: $('accountLogin'), accountPlan: $('accountPlan'),
     passBtn: $('passBtn'), logoutBtn: $('logoutBtn'), passModal: $('passModal'), passClose: $('passClose'), passForm: $('passForm'),
+    splash: $('splash'), splashMark: $('splashMark'), splashName: $('splashName'), splashVersion: $('splashVersion'),
   };
 
   const store = {
@@ -256,6 +258,7 @@
       state.playlistLoaded = true;
       el.status.textContent = `${state.channels.length} channel`;
       route();
+      autoStart();
       return;
     }
     const cached = store.get(PLAYLIST_CACHE, null);
@@ -277,6 +280,7 @@
     renderChips();
     renderList();
     route();
+    autoStart();
   }
 
   // ---------- Daftar & filter ----------
@@ -416,6 +420,29 @@
     } else {
       location.hash = '/' + slug;
     }
+  }
+
+  function canAutoplay(ch) {
+    if (isLocked(ch)) return !!activeAccess();
+    const src = ch.sources[0];
+    return !!src && src.type !== 'vidio';
+  }
+
+  // Sekali per kunjungan: bila dibuka di beranda, langsung putar channel terakhir atau channel pertama yang bisa diputar.
+  function autoStart() {
+    if (state.autoStarted) return;
+    if (currentSlug()) { state.autoStarted = true; return; }
+    const lastSlug = store.get('last', null);
+    const last = lastSlug ? state.bySlug.get(lastSlug) : null;
+    if (lastSlug && !last && !state.playlistLoaded) return;
+    state.autoStarted = true;
+    const ch = (last && canAutoplay(last) && last)
+      || state.channels.find((c) => !c.premium && c.sources[0] && c.sources[0].type === 'hls')
+      || state.channels.find(canAutoplay);
+    if (!ch) return;
+    if (useHistory) history.replaceState(null, '', basePath + ch.slug);
+    else location.replace('#/' + ch.slug);
+    route();
   }
 
   function route() {
@@ -1244,8 +1271,7 @@
     }
   }
 
-  function renderBrand(markEl, nameEl) {
-    const site = state.settings.site;
+  function renderBrand(markEl, nameEl, site = state.settings.site) {
     const words = site.name.trim().split(/\s+/);
     nameEl.textContent = words.length > 1 ? words.slice(0, -1).join(' ') + ' ' : '';
     const bold = document.createElement('b');
@@ -1330,12 +1356,48 @@
     addEventListener('offline', measurePing);
   }
 
+  function startClock() {
+    const time = new Intl.DateTimeFormat('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false });
+    const date = new Intl.DateTimeFormat('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const tick = () => {
+      const now = new Date();
+      const text = time.format(now).replace('.', ':');
+      if (el.clock.textContent === text) return;
+      el.clock.textContent = text;
+      el.clock.dateTime = now.toISOString();
+      el.clock.title = date.format(now);
+    };
+    tick();
+    setInterval(tick, 1000);
+  }
+
+  // Di APK (Capacitor) yang ditampilkan versi aplikasinya, di web versi server.
+  async function appVersion(config) {
+    const cap = window.Capacitor;
+    if (cap && cap.isNativePlatform && cap.isNativePlatform() && cap.nativePromise) {
+      try { return (await cap.nativePromise('App', 'getInfo')).version; } catch { /* plugin App tidak tersedia */ }
+    }
+    return config && config.version;
+  }
+
+  async function finishSplash(config) {
+    if (!el.splash) return;
+    renderBrand(el.splashMark, el.splashName, config ? config.site : FALLBACK_CONFIG.site);
+    const version = await appVersion(config);
+    if (version) el.splashVersion.textContent = `Versi ${version}`;
+    await new Promise((r) => setTimeout(r, Math.max(0, SPLASH_MIN_MS - performance.now())));
+    try { sessionStorage.setItem('tvn.splash', '1'); } catch { /* storage diblokir */ }
+    el.splash.classList.add('out');
+    setTimeout(() => el.splash.remove(), 600);
+  }
+
   async function init() {
     // Terapkan pilihan tema pengunjung sebelum menunggu server agar halaman tidak berkedip.
     const savedTheme = store.get('theme', null);
     if (savedTheme) applyTheme(savedTheme);
     bindAuthEvents();
     let config = await fetchConfig();
+    finishSplash(config);
     if (config && config.locked) {
       state.settings = { ...FALLBACK_CONFIG, ...config };
       applyBaseLook();
@@ -1358,8 +1420,10 @@
     renderList();
     renderQuickGrid();
     route();
+    autoStart();
     loadPlaylist();
     startPing();
+    startClock();
   }
 
   init();

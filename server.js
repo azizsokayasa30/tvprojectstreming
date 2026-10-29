@@ -22,6 +22,7 @@ const FILES = {
 };
 const PORT = Number(process.env.PORT) || 8080;
 const DEV = process.argv.includes('--dev');
+const VERSION = require('./package.json').version;
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36';
 const YT_CACHE_MS = 10 * 60 * 1000;
 const SESSION_MS = 12 * 60 * 60 * 1000;
@@ -534,8 +535,8 @@ async function handleApi(req, res, url) {
 
   // --- Publik (tertutup bila wajib login) ---
   if (p === '/api/config' && req.method === 'GET') {
-    if (loginRequired) return sendJson(res, 200, { site: config.site, auth: config.auth, user: null, locked: true });
-    return sendJson(res, 200, { ...publicView(config), user: user ? userView(user) : null });
+    if (loginRequired) return sendJson(res, 200, { site: config.site, auth: config.auth, user: null, locked: true, version: VERSION });
+    return sendJson(res, 200, { ...publicView(config), user: user ? userView(user) : null, version: VERSION });
   }
 
   if (!p.startsWith('/api/admin/') && loginRequired) return sendJson(res, 401, { error: 'Silakan masuk terlebih dahulu.' });

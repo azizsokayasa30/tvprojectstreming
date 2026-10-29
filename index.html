@@ -13,6 +13,18 @@
   <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
+  <div class="splash" id="splash" aria-hidden="true">
+    <div class="splash-inner">
+      <span class="splash-mark" id="splashMark"><svg viewBox="0 0 32 32"><defs><linearGradient id="logoSplash" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop offset="0" style="stop-color:var(--accent)"/><stop offset="1" stop-color="#7c3aed"/></linearGradient></defs><path d="M12 8 9 3.5M20 8l3-4.5" stroke="url(#logoSplash)" stroke-width="2.2" stroke-linecap="round"/><rect x="3" y="8" width="26" height="19.5" rx="6" fill="url(#logoSplash)"/><path d="M13.5 13.2v8.8l7.6-4.4z" fill="#fff"/></svg></span>
+      <span class="splash-name" id="splashName">TEKDROID <b>TV</b></span>
+      <span class="splash-version" id="splashVersion">&nbsp;</span>
+      <span class="splash-bar"><i></i></span>
+    </div>
+  </div>
+  <script>
+    // Splash hanya tampil saat aplikasi/tab baru dibuka, bukan saat halaman dimuat ulang.
+    try { if (sessionStorage.getItem('tvn.splash')) document.getElementById('splash').remove(); } catch { /* storage diblokir */ }
+  </script>
   <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
     <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></symbol>
     <symbol id="i-pause" viewBox="0 0 24 24"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" fill="currentColor"/></symbol>
@@ -81,6 +93,7 @@
       <input id="search" type="search" placeholder="Cari channel, mis. Indosiar" autocomplete="off">
     </label>
     <span class="ping" id="ping" role="status" title="Ping ke server" hidden><i></i><b id="pingValue">… ms</b></span>
+    <time class="clock" id="clock">--:--</time>
     <button class="theme-btn" id="themeBtn" type="button" title="Ganti ke mode terang" aria-label="Ganti ke mode terang"><svg><use href="#i-sun"/></svg></button>
     <button class="btn sub-btn" id="subscribeBtn" type="button" hidden><svg><use href="#i-star"/></svg> <span id="subscribeText">Berlangganan</span></button>
     <button class="btn ghost login-btn" id="loginBtn" type="button" hidden><svg><use href="#i-user"/></svg> Masuk</button>
