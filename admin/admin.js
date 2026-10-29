@@ -786,7 +786,7 @@
     const tbody = h('tbody');
     const count = h('span', { class: 'muted small' });
     const search = h('input', {
-      type: 'search', placeholder: 'Cari nama, email, atau nomor HP…', value: state.userQuery,
+      type: 'search', placeholder: 'Cari nama atau username…', value: state.userQuery,
       oninput: (e) => { state.userQuery = e.target.value; fill(); },
     });
 
@@ -927,7 +927,7 @@
   function showLogin() {
     $('shell').hidden = true;
     $('login').hidden = false;
-    $('loginPassword').focus();
+    $('loginUsername').focus();
   }
 
   async function boot() {
@@ -943,7 +943,7 @@
     e.preventDefault();
     $('loginError').hidden = true;
     try {
-      await api('POST', '/api/admin/login', { password: $('loginPassword').value });
+      await api('POST', '/api/admin/login', { username: $('loginUsername').value, password: $('loginPassword').value });
       $('loginPassword').value = '';
       boot();
     } catch (err) {

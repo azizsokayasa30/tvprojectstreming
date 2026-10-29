@@ -29,6 +29,8 @@
     <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2" fill="currentColor"/><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
     <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" fill="currentColor"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 6.5h16M4 12h16M4 17.5h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m6.5 9.5 5.5 5.5 5.5-5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="4" fill="currentColor"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0z" fill="currentColor"/></symbol>
     <symbol id="i-logout" viewBox="0 0 24 24"><path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4M10 16l-4-4 4-4M6 12h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="14" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m11 11 8-8m-3 3 2.5 2.5M14 8l2 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
@@ -47,8 +49,8 @@
         <button type="button" data-tab="register">Daftar</button>
       </div>
       <form class="auth-form" id="loginForm" novalidate>
-        <label class="auth-field"><span>Email atau nomor HP</span>
-          <input name="login" type="text" inputmode="email" autocomplete="username" placeholder="nama@email.com / 08xxxxxxxxxx" required>
+        <label class="auth-field"><span>Username</span>
+          <input name="login" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required>
         </label>
         <label class="auth-field"><span>Password</span>
           <input name="password" type="password" autocomplete="current-password" required>
@@ -57,11 +59,8 @@
         <button class="btn" type="submit">Masuk</button>
       </form>
       <form class="auth-form" id="registerForm" novalidate hidden>
-        <label class="auth-field"><span>Nama</span>
-          <input name="name" type="text" autocomplete="name" maxlength="60" required>
-        </label>
-        <label class="auth-field"><span>Email atau nomor HP</span>
-          <input name="login" type="text" inputmode="email" autocomplete="username" placeholder="nama@email.com / 08xxxxxxxxxx" required>
+        <label class="auth-field"><span>Username <small>(minimal 3 karakter)</small></span>
+          <input name="login" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="60" required>
         </label>
         <label class="auth-field"><span>Password <small>(minimal 6 karakter)</small></span>
           <input name="password" type="password" autocomplete="new-password" minlength="6" required>
@@ -74,6 +73,7 @@
   </div>
 
   <header class="topbar">
+    <button class="menu-btn" id="menuBtn" type="button" title="Kategori channel" aria-label="Buka menu kategori"><svg><use href="#i-menu"/></svg></button>
     <a class="brand" href="./" id="brandLink">
       <span class="brand-mark" id="brandMark"><svg viewBox="0 0 32 32"><defs><linearGradient id="logoTop" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop offset="0" style="stop-color:var(--accent)"/><stop offset="1" stop-color="#7c3aed"/></linearGradient></defs><path d="M12 8 9 3.5M20 8l3-4.5" stroke="url(#logoTop)" stroke-width="2.2" stroke-linecap="round"/><rect x="3" y="8" width="26" height="19.5" rx="6" fill="url(#logoTop)"/><path d="M13.5 13.2v8.8l7.6-4.4z" fill="#fff"/></svg></span>
       <span class="brand-name" id="brandName">TEKDROID <b>TV</b></span>
@@ -186,13 +186,26 @@
     </section>
 
     <aside class="sidebar">
-      <div class="chips" id="chips"></div>
+      <button class="list-head" id="listHead" type="button" title="Pilih kategori">
+        <b id="catTitle">Semua</b><span id="catCount"></span>
+        <svg class="chev"><use href="#i-chevron"/></svg>
+      </button>
       <ul class="list" id="list"></ul>
       <p class="status" id="status">Memuat channel daerah…</p>
     </aside>
   </main>
 
   <footer class="footer" id="footer" hidden></footer>
+
+  <div class="drawer" id="drawer" hidden>
+    <aside class="drawer-panel" role="dialog" aria-modal="true" aria-labelledby="drawerTitle">
+      <header>
+        <h2 id="drawerTitle">Kategori</h2>
+        <button class="ctl" id="drawerClose" type="button" aria-label="Tutup menu">✕</button>
+      </header>
+      <nav class="drawer-nav" id="drawerNav"></nav>
+    </aside>
+  </div>
 
   <div class="modal" id="subModal" hidden>
     <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="subTitle">

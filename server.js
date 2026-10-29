@@ -292,13 +292,17 @@ function hashPassword(password) {
 }
 
 let admin = readJson(FILES.admin, null);
+if (admin && !admin.username) {
+  admin = { username: 'admin', ...admin };
+  writeJson(FILES.admin, admin);
+}
 if (!admin) {
   const initial = process.env.ADMIN_PASSWORD || crypto.randomBytes(9).toString('base64url');
-  admin = hashPassword(initial);
+  admin = { username: 'admin', ...hashPassword(initial) };
   writeJson(FILES.admin, admin);
   console.log('──────────────────────────────────────────────');
-  console.log(' Akun admin dibuat. Password awal portal /admin:');
-  console.log(`   ${initial}`);
+  console.log(' Akun admin dibuat. Login portal /admin:');
+  console.log(`   username: admin   password: ${initial}`);
   console.log(' Segera ganti lewat menu Akun di portal.');
   console.log('──────────────────────────────────────────────');
 }
@@ -358,12 +362,8 @@ const saveUserSessions = () => writeJson(FILES.userSessions, Object.fromEntries(
 const tokenHash = (token) => crypto.createHash('sha256').update(token).digest('hex');
 
 function normalizeLogin(value) {
-  const s = str(value, 120).toLowerCase();
-  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)) return s;
-  const d = s.replace(/[\s\-().]/g, '');
-  if (!/^\+?\d{8,15}$/.test(d)) return '';
-  const n = d.replace(/^\+/, '');
-  return n.startsWith('62') ? '0' + n.slice(2) : n;
+  const s = str(value, 60).toLowerCase();
+  return /^[a-z0-9._@+-]{3,60}$/.test(s) ? s : '';
 }
 
 function startUserSession(user) {
@@ -475,14 +475,13 @@ async function handleApi(req, res, url) {
     if (!config.auth.allowRegister) return sendJson(res, 403, { error: 'Pendaftaran akun sedang ditutup.' });
     if (registerLimiter.limited(ip)) return sendJson(res, 429, TOO_MANY);
     const body = await readBody(req);
-    const name = str(body.name, 60);
     const login = normalizeLogin(body.login);
-    if (name.length < 2) return sendJson(res, 400, { error: 'Nama minimal 2 karakter.' });
-    if (!login) return sendJson(res, 400, { error: 'Masukkan email atau nomor HP yang valid.' });
+    if (!login) return sendJson(res, 400, { error: 'Username minimal 3 karakter, hanya huruf, angka, titik, garis bawah, atau strip.' });
+    const name = str(body.name, 60) || login;
     if (typeof body.password !== 'string' || body.password.length < 6 || body.password.length > 200) {
       return sendJson(res, 400, { error: 'Password minimal 6 karakter.' });
     }
-    if (users.some((u) => u.login === login)) return sendJson(res, 409, { error: 'Email/nomor HP ini sudah terdaftar. Silakan masuk.' });
+    if (users.some((u) => u.login === login)) return sendJson(res, 409, { error: 'Username ini sudah dipakai. Pilih yang lain atau silakan masuk.' });
     registerLimiter.hit(ip);
     const now = Date.now();
     const created = { id: newId(), name, login, ...hashPassword(body.password), createdAt: now, lastLoginAt: now, disabled: false };
@@ -498,7 +497,7 @@ async function handleApi(req, res, url) {
     const found = login && users.find((u) => u.login === login);
     if (!found || !checkPassword(body.password, found)) {
       userLimiter.hit(ip);
-      return sendJson(res, 401, { error: 'Email/nomor HP atau password salah.' });
+      return sendJson(res, 401, { error: 'Username atau password salah.' });
     }
     if (found.disabled) return sendJson(res, 403, { error: 'Akun ini dinonaktifkan. Hubungi admin.' });
     userLimiter.reset(ip);
@@ -583,8 +582,9 @@ async function handleApi(req, res, url) {
   // --- Admin: login ---
   if (p === '/api/admin/login' && req.method === 'POST') {
     if (adminLimiter.limited(ip)) return sendJson(res, 429, TOO_MANY);
-    const { password } = await readBody(req);
-    if (!verifyPassword(password)) { adminLimiter.hit(ip); return sendJson(res, 401, { error: 'Password salah.' }); }
+    const { username, password } = await readBody(req);
+    const sameUser = String(username || '').trim().toLowerCase() === admin.username;
+    if (!verifyPassword(password) || !sameUser) { adminLimiter.hit(ip); return sendJson(res, 401, { error: 'Username atau password salah.' }); }
     adminLimiter.reset(ip);
     const token = crypto.randomBytes(32).toString('hex');
     sessions.set(token, Date.now() + SESSION_MS);
@@ -621,7 +621,7 @@ async function handleApi(req, res, url) {
     const { current, next } = await readBody(req);
     if (!verifyPassword(current)) return sendJson(res, 400, { error: 'Password lama salah.' });
     if (typeof next !== 'string' || next.length < 8) return sendJson(res, 400, { error: 'Password baru minimal 8 karakter.' });
-    admin = hashPassword(next);
+    admin = { username: admin.username, ...hashPassword(next) };
     writeJson(FILES.admin, admin);
     for (const t of sessions.keys()) if (t !== token) sessions.delete(t);
     return sendJson(res, 200, { ok: true });

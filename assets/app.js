@@ -43,7 +43,9 @@
     infobar: $('infobar'), nowLogo: $('nowLogo'), nowName: $('nowName'), nowMeta: $('nowMeta'),
     qualitySelect: $('qualitySelect'),
     copyBtn: $('copyBtn'), fsInfoBtn: $('fsInfoBtn'), hint: $('hint'),
-    search: $('search'), chips: $('chips'), list: $('list'), status: $('status'),
+    search: $('search'), list: $('list'), status: $('status'),
+    menuBtn: $('menuBtn'), listHead: $('listHead'), catTitle: $('catTitle'), catCount: $('catCount'),
+    drawer: $('drawer'), drawerNav: $('drawerNav'), drawerClose: $('drawerClose'),
     toast: $('toast'), brandLink: $('brandLink'), brandMark: $('brandMark'), brandName: $('brandName'),
     welcomeTitle: $('welcomeTitle'), welcomeText: $('welcomeText'), announce: $('announce'),
     layout: $('layout'), footer: $('footer'),
@@ -287,18 +289,38 @@
     const counts = {};
     for (const c of state.channels) for (const g of c.groups) counts[g] = (counts[g] || 0) + 1;
     counts['Semua'] = state.channels.length;
-    el.chips.innerHTML = '';
+    el.drawerNav.innerHTML = '';
     const custom = Object.keys(counts).filter((c) => !CATEGORY_ORDER.includes(c));
     for (const cat of [...CATEGORY_ORDER, ...custom]) {
       if (!counts[cat]) continue;
       const b = document.createElement('button');
       b.type = 'button';
       b.className = cat === state.category ? 'on' : '';
-      b.innerHTML = `${escapeHtml(cat)}<span>${counts[cat]}</span>`;
-      b.onclick = () => { state.category = cat; renderChips(); renderList(); };
-      el.chips.appendChild(b);
+      b.innerHTML = `<span>${escapeHtml(cat)}</span><em>${counts[cat]}</em>`;
+      b.onclick = () => selectCategory(cat);
+      el.drawerNav.appendChild(b);
     }
+    el.catTitle.textContent = state.category;
+    el.catCount.textContent = `${counts[state.category] || 0} channel`;
   }
+
+  function selectCategory(cat) {
+    state.category = cat;
+    renderChips();
+    renderList();
+    closeDrawer();
+    el.list.scrollTop = 0;
+    const top = el.listHead.getBoundingClientRect().top;
+    if (top < 0 || top > innerHeight - 120) el.listHead.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }
+
+  function openDrawer() {
+    el.drawer.hidden = false;
+    const on = el.drawerNav.querySelector('.on') || el.drawerNav.querySelector('button');
+    if (on) on.focus();
+  }
+
+  function closeDrawer() { el.drawer.hidden = true; }
 
   function renderList() {
     const items = visibleChannels();
@@ -583,7 +605,7 @@
     el.accountAvatar.textContent = (user.name.trim()[0] || '?').toUpperCase();
     el.accountBtn.title = user.name;
     el.accountName.textContent = user.name;
-    el.accountLogin.textContent = user.login;
+    el.accountLogin.textContent = '@' + user.login;
     const access = activeAccess();
     el.accountPlan.className = 'account-plan' + (access ? ' on' : '');
     el.accountPlan.textContent = access
@@ -652,7 +674,7 @@
     el.loginForm.addEventListener('submit', (e) => {
       e.preventDefault();
       const { login, password } = Object.fromEntries(new FormData(el.loginForm));
-      if (!login.trim() || !password) { formError(el.loginForm, 'Isi email/nomor HP dan password.'); return; }
+      if (!login.trim() || !password) { formError(el.loginForm, 'Isi username dan password.'); return; }
       submitForm(el.loginForm, 'api/auth/login', (body) => {
         setUser(body.user);
         closeAuth(body.user);
@@ -661,9 +683,8 @@
     });
     el.registerForm.addEventListener('submit', (e) => {
       e.preventDefault();
-      const { name, login, password } = Object.fromEntries(new FormData(el.registerForm));
-      if (name.trim().length < 2) { formError(el.registerForm, 'Nama minimal 2 karakter.'); return; }
-      if (!login.trim()) { formError(el.registerForm, 'Isi email atau nomor HP.'); return; }
+      const { login, password } = Object.fromEntries(new FormData(el.registerForm));
+      if (login.trim().length < 3) { formError(el.registerForm, 'Username minimal 3 karakter.'); return; }
       if (password.length < 6) { formError(el.registerForm, 'Password minimal 6 karakter.'); return; }
       submitForm(el.registerForm, 'api/auth/register', (body) => {
         setUser(body.user);
@@ -1182,14 +1203,19 @@
     el.subscribeBtn.onclick = openSubscribe;
     el.subClose.onclick = () => { el.subModal.hidden = true; };
     el.subModal.addEventListener('click', (e) => { if (e.target === el.subModal) el.subModal.hidden = true; });
+    el.menuBtn.onclick = openDrawer;
+    el.listHead.onclick = openDrawer;
+    el.drawerClose.onclick = closeDrawer;
+    el.drawer.addEventListener('click', (e) => { if (e.target === el.drawer) closeDrawer(); });
 
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
+        if (!el.drawer.hidden) { closeDrawer(); return; }
         if (!el.subModal.hidden) { el.subModal.hidden = true; return; }
         if (!el.passModal.hidden) { el.passModal.hidden = true; return; }
         if (!el.accountMenu.hidden) { el.accountMenu.hidden = true; return; }
       }
-      if (!el.auth.hidden) return;
+      if (!el.auth.hidden || !el.drawer.hidden) return;
       if (e.target.matches('input, select, textarea') || e.ctrlKey || e.metaKey || e.altKey) return;
       switch (e.key) {
         case 'f': case 'F': e.preventDefault(); toggleFullscreen(); break;
