@@ -425,8 +425,6 @@ body.light .quality-menu button.on { background: color-mix(in srgb, var(--accent
 .btn.ghost:hover { background: #222838; }
 .btn.icon { padding: 8px 10px; }
 .btn svg { width: 18px; height: 18px; }
-.hint { color: var(--muted); font-size: 12.5px; margin: 10px 4px 0; }
-
 /* Sidebar */
 .list-head {
   display: flex;
@@ -946,8 +944,6 @@ body:not(.light) ::-webkit-scrollbar-track { background: transparent; }
   .actions { flex: none; flex-wrap: nowrap; gap: 6px; }
   .actions .field { display: none; }
   #fsInfoBtn { font-size: 0; gap: 0; padding: 8px 10px; }
-  .hint { display: none; }
-
   body .layout .sidebar { background: none; border: 0; border-radius: 0; box-shadow: none; backdrop-filter: none; }
   .list-head {
     position: sticky; top: 0; z-index: 5;

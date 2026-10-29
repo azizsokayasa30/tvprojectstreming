@@ -480,7 +480,6 @@
       state.current = null;
       el.player.dataset.mode = 'idle';
       el.infobar.hidden = true;
-      el.hint.textContent = '';
       document.title = `${state.settings.site.name} — Live TV Indonesia`;
       highlightActive();
       return;
@@ -579,7 +578,6 @@
 
   async function unlockChannel(ch, token) {
     el.infobar.hidden = true;
-    el.hint.textContent = '';
     highlightActive();
     if (activeAccess()) {
       el.player.dataset.mode = 'loading';
