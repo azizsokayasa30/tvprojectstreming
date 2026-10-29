@@ -458,20 +458,28 @@ body.light .quality-menu button.on { background: color-mix(in srgb, var(--accent
 }
 .menu-btn svg { width: 20px; height: 20px; }
 .list-head:hover .menu-btn { border-color: var(--accent); color: var(--accent-2); }
-.drawer { position: fixed; inset: 0; z-index: 45; background: rgba(4, 7, 15, .55); backdrop-filter: blur(3px); animation: fadeIn .2s ease-out; }
+.drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(4, 7, 15, .55);
+  backdrop-filter: blur(3px);
+  animation: fadeIn .2s ease-out;
+}
 .drawer-panel {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: min(300px, 84vw);
+  width: min(340px, 100%);
+  max-height: min(560px, 100%);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   background: var(--panel);
-  border-right: 1px solid var(--line);
-  box-shadow: 18px 0 50px -20px rgba(0, 0, 0, .6);
-  padding-top: env(safe-area-inset-top);
-  animation: drawerIn .24s cubic-bezier(.2, .8, .2, 1);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 24px 60px -20px rgba(0, 0, 0, .6);
+  animation: drawerIn .22s cubic-bezier(.2, .8, .2, 1);
 }
 .drawer-panel header { display: flex; align-items: center; justify-content: space-between; padding: 14px 12px 14px 20px; border-bottom: 1px solid var(--line); }
 .drawer-panel h2 { margin: 0; font-size: 16px; }
@@ -495,7 +503,7 @@ body.light .quality-menu button.on { background: color-mix(in srgb, var(--accent
 .drawer-nav button:hover { background: var(--panel-2); }
 .drawer-nav button.on { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent-2); box-shadow: inset 3px 0 0 var(--accent); }
 .drawer-nav button.on em { background: var(--accent); color: #fff; }
-@keyframes drawerIn { from { transform: translateX(-100%); } }
+@keyframes drawerIn { from { opacity: 0; transform: scale(.94); } }
 @keyframes fadeIn { from { opacity: 0; } }
 
 .list { list-style: none; margin: 0; padding: 6px; overflow-y: auto; flex: 1; scrollbar-width: thin; }
@@ -760,7 +768,7 @@ body:not(.light) .infobar {
 }
 body:not(.light) .list-head { border-bottom-color: rgba(148, 163, 205, .08); }
 body:not(.light) .menu-btn { background: rgba(255, 255, 255, .04); border-color: rgba(148, 163, 205, .14); }
-body:not(.light) .drawer-panel { background: linear-gradient(180deg, #161e33, #0f1524); border-right-color: rgba(148, 163, 205, .1); }
+body:not(.light) .drawer-panel { background: linear-gradient(180deg, #161e33, #0f1524); border-color: rgba(148, 163, 205, .12); }
 body:not(.light) .drawer-nav button:hover { background: rgba(255, 255, 255, .05); }
 body:not(.light) .drawer-nav button em { background: rgba(255, 255, 255, .06); }
 body:not(.light) .drawer-nav button.on em { background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 65%, #7c3aed)); }
