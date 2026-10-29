@@ -1,0 +1,9 @@
+{
+  "name": "tv-nusantara",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Web live streaming TV Indonesia",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

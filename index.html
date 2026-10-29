@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>TV Nusantara — Live TV Indonesia</title>
+  <meta name="description" content="Nonton live streaming TV Indonesia: channel nasional, TVRI daerah, dan TV lokal.">
+  <meta name="theme-color" content="#0a0e17">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='2' y='6' width='28' height='19' rx='4' fill='%23e5203a'/%3E%3Cpath d='M13 11v9l8-4.5z' fill='white'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" fill="currentColor"/></symbol>
+    <symbol id="i-volume" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" fill="currentColor"/><path d="m16 9.5 5 5m0-5-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm8.1 4.6-.1-1.1 1.8-1.5-2-3.4-2.2.8a7.6 7.6 0 0 0-1.9-1.1L15.3 4h-4l-.4 2.3a7.6 7.6 0 0 0-1.9 1.1l-2.2-.8-2 3.4L6.6 12l-.1 1.1L4.8 14.6l2 3.4 2.2-.8c.6.5 1.2.8 1.9 1.1l.4 2.3h4l.4-2.3c.7-.3 1.3-.6 1.9-1.1l2.2.8 2-3.4z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+    <symbol id="i-pip" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="12" y="11" width="7" height="6" rx="1" fill="currentColor"/></symbol>
+    <symbol id="i-expand" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-compress" viewBox="0 0 24 24"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="m16 16 4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" fill="currentColor"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2" fill="currentColor"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2" fill="currentColor"/><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" fill="currentColor"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  </svg>
+
+  <header class="topbar">
+    <a class="brand" href="./" id="brandLink">
+      <span class="brand-mark" id="brandMark"><svg viewBox="0 0 32 32"><rect x="2" y="6" width="28" height="19" rx="4" fill="var(--accent)"/><path d="M13 11v9l8-4.5z" fill="#fff"/></svg></span>
+      <span class="brand-name" id="brandName">TV <b>Nusantara</b></span>
+    </a>
+    <label class="search">
+      <svg><use href="#i-search"/></svg>
+      <input id="search" type="search" placeholder="Cari channel… (mis. Indosiar, TVRI Jawa Timur)" autocomplete="off">
+    </label>
+    <button class="theme-btn" id="themeBtn" type="button" title="Ganti ke mode terang" aria-label="Ganti ke mode terang"><svg><use href="#i-sun"/></svg></button>
+    <button class="btn sub-btn" id="subscribeBtn" type="button" hidden><svg><use href="#i-star"/></svg> <span id="subscribeText">Berlangganan</span></button>
+  </header>
+
+  <div class="announce" id="announce" hidden></div>
+
+  <main class="layout" id="layout">
+    <section class="stage">
+      <div class="player" id="player" data-mode="idle">
+        <video id="video" playsinline></video>
+        <div class="frame-host" id="frameHost"></div>
+
+        <div class="welcome" id="welcome">
+          <h1 id="welcomeTitle">Nonton TV Indonesia, live.</h1>
+          <p><span id="welcomeText">Pilih channel di bawah atau dari daftar di samping.</span> Tiap channel punya alamat sendiri, mis. <code id="exampleUrl">/indosiar</code>.</p>
+          <div class="quick" id="quickGrid"></div>
+        </div>
+
+        <div class="paywall" id="paywall">
+          <span id="paywallLogo"></span>
+          <h3 id="paywallTitle"></h3>
+          <p>Channel ini khusus pelanggan. Masukkan kode akses, atau beli paket untuk mendapatkannya.</p>
+          <form class="code-form" id="paywallForm">
+            <input id="paywallCode" type="text" placeholder="TVN-XXXX-XXXX" autocomplete="off" spellcheck="false" required>
+            <button class="btn" type="submit"><svg><use href="#i-lock"/></svg> Buka</button>
+          </form>
+          <button class="link-btn" id="paywallPlans" type="button">Lihat paket langganan</button>
+        </div>
+
+        <div class="external" id="external">
+          <span id="externalLogo"></span>
+          <h3 id="externalTitle"></h3>
+          <p id="externalText"></p>
+          <a class="btn" id="externalLink" target="_blank" rel="noopener"><svg><use href="#i-play"/></svg> <span id="externalBtnText"></span></a>
+        </div>
+
+        <div class="spinner" id="spinner"><span></span></div>
+
+        <div class="message" id="message" hidden>
+          <strong id="messageTitle"></strong>
+          <p id="messageText"></p>
+          <div class="message-actions">
+            <button class="btn" id="retryBtn" type="button">Coba lagi</button>
+            <button class="btn ghost" id="nextSourceBtn" type="button" hidden>Sumber lain</button>
+          </div>
+        </div>
+
+        <button class="big-play" id="bigPlay" type="button" hidden aria-label="Putar"><svg><use href="#i-play"/></svg></button>
+        <button class="unmute" id="unmuteBtn" type="button" hidden><svg><use href="#i-mute"/></svg> Ketuk untuk menyalakan suara</button>
+
+        <div class="controls" id="controls">
+          <button class="ctl" id="playBtn" type="button" title="Putar/Jeda (Spasi)"><svg><use href="#i-pause"/></svg></button>
+          <button class="ctl" id="muteBtn" type="button" title="Suara (M)"><svg><use href="#i-volume"/></svg></button>
+          <input class="volume" id="volume" type="range" min="0" max="1" step="0.05" value="1" aria-label="Volume">
+          <span class="live-pill"><i></i>LIVE</span>
+          <span class="ctl-title" id="ctlTitle"></span>
+          <span class="spacer"></span>
+          <div class="quality">
+            <button class="ctl quality-btn" id="qualityBtn" type="button" title="Resolusi">
+              <svg><use href="#i-gear"/></svg><span id="qualityBadge">Auto</span>
+            </button>
+            <div class="quality-menu" id="qualityMenu" hidden></div>
+          </div>
+          <button class="ctl" id="pipBtn" type="button" title="Picture-in-picture"><svg><use href="#i-pip"/></svg></button>
+          <button class="ctl" id="fsBtn" type="button" title="Layar penuh (F)"><svg><use href="#i-expand"/></svg></button>
+        </div>
+
+        <button class="ctl fs-corner" id="fsCorner" type="button" title="Layar penuh (F)"><svg><use href="#i-expand"/></svg></button>
+      </div>
+
+      <div class="infobar" id="infobar" hidden>
+        <div class="now">
+          <span class="now-logo" id="nowLogo"></span>
+          <div>
+            <h2 id="nowName"></h2>
+            <p id="nowMeta"></p>
+          </div>
+        </div>
+        <div class="actions">
+          <label class="field">
+            <span>Resolusi</span>
+            <select id="qualitySelect"></select>
+          </label>
+          <button class="btn ghost icon" id="copyBtn" type="button" title="Salin link channel"><svg><use href="#i-link"/></svg></button>
+          <button class="btn" id="fsInfoBtn" type="button"><svg><use href="#i-expand"/></svg> Layar penuh</button>
+        </div>
+      </div>
+      <p class="hint" id="hint"></p>
+    </section>
+
+    <aside class="sidebar">
+      <div class="chips" id="chips"></div>
+      <ul class="list" id="list"></ul>
+      <p class="status" id="status">Memuat channel daerah…</p>
+    </aside>
+  </main>
+
+  <footer class="footer" id="footer" hidden></footer>
+
+  <div class="modal" id="subModal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="subTitle">
+      <header>
+        <h2 id="subTitle">Berlangganan</h2>
+        <button class="ctl" id="subClose" type="button" aria-label="Tutup">✕</button>
+      </header>
+      <div class="modal-body">
+        <div class="access-status" id="accessStatus" hidden></div>
+        <h3>Pilih paket</h3>
+        <div class="plans" id="plans"></div>
+        <div id="payMethods"></div>
+        <p class="pay-note" id="payInstructions"></p>
+        <h3>Sudah punya kode akses?</h3>
+        <form class="code-form" id="redeemForm">
+          <input id="redeemCode" type="text" placeholder="TVN-XXXX-XXXX" autocomplete="off" spellcheck="false" required>
+          <button class="btn" type="submit">Aktifkan</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js"></script>
+  <script src="assets/channels.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>
