@@ -395,6 +395,32 @@ const LIVE_CONCURRENCY = 8;
 const liveState = { startedAt: 0, checkedAt: 0, running: false, channels: {}, playlist: {} };
 
 // Membaca awal respons saja: sebagian URL playlist berupa stream MPEG-TS yang tidak pernah selesai.
+// Rilis APK terbaru di GitHub (tag apk-v1.0.N), agar APK lama bisa diminta update.
+const APK_REPO = process.env.APK_REPO || 'azizsokayasa30/tvprojectstreming';
+const APK_CACHE_MS = 30 * 60 * 1000;
+const apkRelease = { at: 0, data: null };
+
+async function refreshApkRelease() {
+  if (Date.now() - apkRelease.at < APK_CACHE_MS) return;
+  apkRelease.at = Date.now();
+  try {
+    const res = await fetch(`https://api.github.com/repos/${APK_REPO}/releases/latest`, {
+      headers: { 'User-Agent': UA, Accept: 'application/vnd.github+json' },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) return;
+    const rel = await res.json();
+    const version = (/^apk-v(\d+\.\d+\.\d+)$/.exec(rel.tag_name || '') || [])[1];
+    const asset = (rel.assets || []).find((a) => /\.apk$/i.test(a.name));
+    if (version && asset) apkRelease.data = { version, url: asset.browser_download_url };
+  } catch { /* GitHub tidak terjangkau: pakai data sebelumnya */ }
+}
+
+function latestApk() {
+  refreshApkRelease();
+  return apkRelease.data;
+}
+
 async function fetchHead(target, maxBytes) {
   const res = await fetch(target, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(LIVE_TIMEOUT_MS) });
   if (!res.ok || !res.body) {
@@ -562,7 +588,7 @@ async function handleApi(req, res, url) {
   const device = deviceKey(req);
 
   if (p === '/api/config' && req.method === 'GET') {
-    return sendJson(res, 200, { ...publicView(config), access: deviceAccess(device), version: VERSION });
+    return sendJson(res, 200, { ...publicView(config), access: deviceAccess(device), version: VERSION, apk: latestApk() });
   }
 
   if (p === '/api/live' && req.method === 'GET') return sendJson(res, 200, liveView());
@@ -774,4 +800,5 @@ server.listen(PORT, () => {
     .map((n) => `http://${n.address}:${PORT}`);
   if (lan.length) console.log(`Dari HP / aplikasi (satu Wi-Fi): ${lan.join('  ')}`);
   if (DEV) console.log('Mode pengembangan: halaman di semua perangkat memuat ulang otomatis saat file diedit.');
+  refreshApkRelease();
 });
