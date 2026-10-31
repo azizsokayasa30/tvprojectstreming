@@ -3,6 +3,8 @@
 //   iframe  : player resmi stasiun yang boleh di-embed (resolusi diatur di player tsb)
 //   youtube : live 24 jam di channel YouTube resmi; ID video live dicari oleh server.js
 //   vidio   : siaran resmi di Vidio, ditampilkan sebagai halaman web vidio.com di dalam pemutar.
+//   web     : situs resmi yang menolak di-embed (mis. Vision+); penonton diberi tombol untuk membukanya.
+//             mobileOnly: true → didahulukan di HP dan tidak dipakai di komputer.
 // Channel daerah dimuat otomatis dari playlist publik iptv-org (lihat PLAYLIST_URL di app.js).
 window.NATIONAL_CHANNELS = [
   { name: 'RCTI', tvgId: 'RCTI.id', groups: ['Nasional'],
@@ -56,8 +58,8 @@ window.NATIONAL_CHANNELS = [
   { name: 'iNews', tvgId: 'iNews.id', groups: ['Nasional', 'Berita'],
     logo: 'https://i.imgur.com/M2R3lfg.png',
     sources: [
-      { type: 'youtube', channelId: 'UCoSkllfpgmFHtbVK835QaQg' },
       { type: 'vidio', id: '5409-inews' },
+      { type: 'youtube', channelId: 'UCoSkllfpgmFHtbVK835QaQg' },
     ] },
   { name: 'CNN Indonesia', tvgId: 'CNNIndonesia.id', groups: ['Nasional', 'Berita'], aliases: ['cnn'],
     logo: 'https://i.imgur.com/l0JyOrm.png',

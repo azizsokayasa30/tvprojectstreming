@@ -22,6 +22,8 @@ public class MainActivity extends BridgeActivity {
         }
         FullscreenChromeClient chrome = new FullscreenChromeClient(bridge);
         bridge.getWebView().setWebChromeClient(chrome);
+        FrameLoginClient frameLogin = new FrameLoginClient(bridge);
+        bridge.setWebViewClient(frameLogin);
 
         // Dipanggil web (applyTheme di assets/app.js) agar bilah status & navigasi ikut tema gelap/terang.
         bridge.getWebView().addJavascriptInterface(new Object() {
@@ -37,6 +39,9 @@ public class MainActivity extends BridgeActivity {
             public void handleOnBackPressed() {
                 if (chrome.isFullscreen()) {
                     chrome.onHideCustomView();
+                    return;
+                }
+                if (frameLogin.returnFromLogin(bridge.getWebView())) {
                     return;
                 }
                 setEnabled(false);

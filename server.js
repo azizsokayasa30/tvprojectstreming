@@ -25,7 +25,7 @@ const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 const YT_CACHE_MS = 10 * 60 * 1000;
 const SESSION_MS = 12 * 60 * 60 * 1000;
 const SECRET_MASK = '••••••••';
-const SOURCE_TYPES = ['hls', 'iframe', 'youtube', 'vidio'];
+const SOURCE_TYPES = ['hls', 'iframe', 'youtube', 'vidio', 'web'];
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -153,6 +153,7 @@ function sanitizeSource(s) {
   if (!type) return null;
   if (type === 'hls') return url(s.url) ? { type, url: url(s.url) } : null;
   if (type === 'iframe') return url(s.url) ? { type, url: url(s.url), label: str(s.label, 60) } : null;
+  if (type === 'web') return url(s.url) ? { type, url: url(s.url), label: str(s.label, 60), mobileOnly: s.mobileOnly === true } : null;
   if (type === 'youtube') return /^UC[\w-]{22}$/.test(s.channelId) ? { type, channelId: s.channelId } : null;
   return /^[\w-]{1,80}$/.test(s.id) ? { type, id: s.id } : null;
 }
@@ -430,6 +431,8 @@ async function sourceLive(s) {
   try {
     if (s.type === 'hls') return await hlsLive(s.url);
     if (s.type === 'youtube') return (await youtubeLive(s.channelId)).live;
+    // Hanya tautan ke situs lain; siarannya sendiri tidak bisa diperiksa dari sini.
+    if (s.type === 'web') return false;
     if (s.type === 'vidio') {
       const r = await fetchHead(`https://www.vidio.com/live/${s.id}`, 1024 * 1024);
       return Boolean(r) && r.buf.includes('"isLiveBroadcast":true');

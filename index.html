@@ -35,6 +35,7 @@
     <symbol id="i-expand" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-compress" viewBox="0 0 24 24"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="m16 16 4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
     <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" fill="currentColor"/></symbol>
     <symbol id="i-crown" viewBox="0 0 24 24"><path d="M3.2 8.2 7.4 11 12 4.6 16.6 11l4.2-2.8L18.6 18H5.4L3.2 8.2Z" fill="currentColor"/><path d="M5 19.6h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
@@ -92,7 +93,8 @@
           <span id="externalLogo"></span>
           <h3 id="externalTitle"></h3>
           <p id="externalText"></p>
-          <a class="btn" id="externalLink" target="_blank" rel="noopener"><svg><use href="#i-play"/></svg> <span id="externalBtnText"></span></a>
+          <a class="btn" id="externalLink" target="_blank" rel="noopener"><svg><use href="#i-external"/></svg> <span id="externalBtnText"></span></a>
+          <button class="btn ghost external-next" id="externalNext" type="button" hidden></button>
         </div>
 
         <div class="spinner" id="spinner"><span></span></div>

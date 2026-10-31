@@ -36,6 +36,7 @@
     welcome: $('welcome'), quickGrid: $('quickGrid'), exampleUrl: $('exampleUrl'),
     external: $('external'), externalLogo: $('externalLogo'), externalTitle: $('externalTitle'),
     externalText: $('externalText'), externalLink: $('externalLink'), externalBtnText: $('externalBtnText'),
+    externalNext: $('externalNext'),
     message: $('message'), messageTitle: $('messageTitle'), messageText: $('messageText'),
     retryBtn: $('retryBtn'), nextSourceBtn: $('nextSourceBtn'),
     bigPlay: $('bigPlay'), unmuteBtn: $('unmuteBtn'),
@@ -144,11 +145,24 @@
       case 'vidio': return 'Vidio.com';
       case 'youtube': return 'YouTube (resmi)';
       case 'iframe': return src.label || 'Player resmi';
+      case 'web': return src.label || 'Situs resmi';
       default: return src.origin === 'playlist' ? 'Stream publik (HLS)' : 'Stream resmi (HLS)';
     }
   }
 
-  const MODE_BY_TYPE = { hls: 'hls', iframe: 'frame', youtube: 'frame', vidio: 'frame' };
+  const MODE_BY_TYPE = { hls: 'hls', iframe: 'frame', youtube: 'frame', vidio: 'frame', web: 'external' };
+
+  const IS_PHONE = /Android|iPhone|iPod|Mobile/i.test(navigator.userAgent);
+
+  // Sumber "khusus HP" didahulukan di HP dan tidak dipakai di komputer. RCTI+ tidak bisa diputar di dalam
+  // pemutar di HP (lihat RCTI_MOBILE), jadi di HP sumber lain yang bisa langsung diputar dicoba lebih dulu.
+  function arrangeSources(sources) {
+    const rank = (s) => {
+      if (s.mobileOnly) return 0;
+      return RCTI_MOBILE && s.type === 'iframe' && isRctiUrl(s.url) ? 2 : 1;
+    };
+    return sources.filter((s) => IS_PHONE || !s.mobileOnly).sort((a, b) => rank(a) - rank(b));
+  }
 
   function onlyExternal(ch) {
     return ch.sources.length > 0 && ch.sources.every((s) => s.type === 'vidio');
@@ -467,7 +481,7 @@
   function canAutoplay(ch) {
     if (isLocked(ch)) return !!activeAccess();
     const src = ch.sources[0];
-    return !!src && src.type !== 'vidio' && !channelOffline(ch);
+    return !!src && src.type !== 'vidio' && src.type !== 'web' && !channelOffline(ch);
   }
 
   // Sekali per kunjungan: bila dibuka di beranda, langsung putar channel terakhir atau channel pertama yang bisa diputar.
@@ -565,14 +579,20 @@
       showMessage(`${ch.name} belum punya sumber siaran`, 'Admin belum mengisi sumber siaran untuk channel ini.', false);
       return;
     }
-    el.player.dataset.mode = MODE_BY_TYPE[src.type];
+    const rctiOutside = src.type === 'iframe' && RCTI_MOBILE && isRctiUrl(src.url);
+    el.player.dataset.mode = rctiOutside ? 'external' : MODE_BY_TYPE[src.type];
     store.set('last', ch.slug);
     updateInfo();
     highlightActive();
 
-    if (src.type === 'vidio') {
+    if (rctiOutside) {
+      showRctiLink(ch, src.url);
+      showExternalNext(ch, sourceIndex);
+    } else if (src.type === 'web') {
+      showExternal(ch, src, sourceIndex);
+    } else if (src.type === 'vidio') {
       setLoading(true);
-      playFrame(`https://www.vidio.com/live/${encodeURIComponent(src.id)}`);
+      playFrame(vidioUrl(src.id));
     } else if (src.type === 'iframe') {
       setLoading(true);
       playFrame(src.url);
@@ -784,6 +804,26 @@
     );
   }
 
+  // Situs seperti Vision+ menolak dibingkai dan siarannya ber-DRM, jadi hanya bisa dibuka di situs/aplikasinya sendiri.
+  function showExternal(ch, src, sourceIndex) {
+    const site = src.label ? src.label.replace(/\s*\(.*\)\s*$/, '') : new URL(src.url).hostname;
+    el.externalLogo.innerHTML = '';
+    el.externalLogo.appendChild(logoBox(ch));
+    el.externalTitle.textContent = `Tonton ${ch.name} di ${site}`;
+    el.externalText.textContent = `${site} tidak mengizinkan siarannya diputar langsung di sini. Tekan tombol di bawah untuk membukanya; aplikasi ${site} terbuka otomatis bila sudah terpasang.`;
+    el.externalLink.href = src.url;
+    el.externalLink.target = '_blank';
+    el.externalBtnText.textContent = `Buka ${site}`;
+    showExternalNext(ch, sourceIndex);
+  }
+
+  function showExternalNext(ch, sourceIndex) {
+    el.externalNext.hidden = ch.sources.length < 2;
+    if (el.externalNext.hidden) return;
+    const next = ch.sources[(sourceIndex + 1) % ch.sources.length];
+    el.externalNext.textContent = `Sumber lain: ${sourceLabel(next).replace(/\s*\(.*\)\s*$/, '')}`;
+  }
+
   function playFrame(url) {
     const frame = document.createElement('iframe');
     frame.setAttribute('allow', 'autoplay; fullscreen; encrypted-media; picture-in-picture; screen-wake-lock');
@@ -792,8 +832,43 @@
     frame.setAttribute('mozallowfullscreen', 'true');
     frame.referrerPolicy = 'strict-origin-when-cross-origin';
     frame.addEventListener('load', () => setLoading(false), { once: true });
+    if (isRctiUrl(url)) frame.classList.add('frame-scaled');
     el.frameHost.appendChild(frame);
+    fitScaledFrame();
     frame.src = url;
+  }
+
+  // RCTI+ pindah ke situs mobile bila lebar halaman atau layar perangkat < 768px. Situs desktop bisa diputar
+  // di iframe asal dirender selebar desktop lalu diperkecil. Situs mobile menyimpan token pengunjungnya di
+  // cookie SameSite=Lax yang ditolak browser di iframe situs lain, jadi di HP siarannya macet di logo dan
+  // hanya bisa ditonton dengan membuka halaman RCTI+ langsung.
+  const RCTI_MOBILE = screen.width < 768;
+  const DESKTOP_FRAME_WIDTH = 1024;
+
+  function isRctiUrl(url) {
+    try { return /(^|\.)rctiplus\.com$/.test(new URL(url).hostname); } catch { return false; }
+  }
+
+  function fitScaledFrame() {
+    const frame = el.frameHost.querySelector('iframe.frame-scaled');
+    const w = el.frameHost.clientWidth, h = el.frameHost.clientHeight;
+    if (!frame || !w || !h) return;
+    const scale = Math.min(1, w / DESKTOP_FRAME_WIDTH);
+    frame.style.width = `${w / scale}px`;
+    frame.style.height = `${h / scale}px`;
+    frame.style.transform = scale < 1 ? `scale(${scale})` : '';
+  }
+
+  function showRctiLink(ch, url) {
+    el.externalLogo.innerHTML = '';
+    el.externalLogo.appendChild(logoBox(ch));
+    el.externalTitle.textContent = `Tonton ${ch.name} di RCTI+`;
+    el.externalText.textContent = 'Di HP, RCTI+ tidak bisa diputar di dalam pemutar ini. Tekan tombol di bawah untuk membuka siaran langsungnya di web RCTI+ (gratis, tanpa login).';
+    el.externalLink.href = url.replace('://www.rctiplus.com', '://m.rctiplus.com');
+    // Di APK dibuka di jendela yang sama: APK baru memuatnya di dalam aplikasi (tombol Kembali kembali ke sini),
+    // APK lama meneruskannya ke browser.
+    el.externalLink.target = IN_APP ? '_self' : '_blank';
+    el.externalBtnText.textContent = 'Buka siaran di RCTI+';
   }
 
   async function playYoutube(channelId, token) {
@@ -915,7 +990,8 @@
     el.qualityMenu.innerHTML = '';
 
     if (!src || src.type !== 'hls') {
-      const text = !src || src.type === 'vidio' ? 'Atur di Vidio' : 'Atur lewat ikon ⚙ di player';
+      const text = !src || src.type === 'vidio' ? 'Atur di Vidio'
+        : src.type === 'web' ? 'Atur di situsnya' : 'Atur lewat ikon ⚙ di player';
       sel.add(new Option(text, ''));
       sel.disabled = true;
       return;
@@ -967,13 +1043,16 @@
     el.nowName.textContent = ch.name;
     el.ctlTitle.textContent = ch.name;
     el.nowMeta.textContent = `${ch.groups.join(' · ')} — ${sourceLabel(src)}`;
-    el.fsInfoBtn.hidden = false;
+    el.fsInfoBtn.hidden = el.player.dataset.mode === 'external';
   }
+
+  const vidioUrl = (id) => `https://www.vidio.com/live/${encodeURIComponent(id)}`;
 
   // ---------- Fullscreen ----------
 
   // WebView APK lama langsung membatalkan layar penuh; APK baru menandai user agent-nya dengan "TekdroidFullscreen".
-  const PSEUDO_FULLSCREEN = /; wv\)/.test(navigator.userAgent) && !navigator.userAgent.includes('TekdroidFullscreen');
+  const IN_APP = /; wv\)/.test(navigator.userAgent);
+  const PSEUDO_FULLSCREEN = IN_APP && !navigator.userAgent.includes('TekdroidFullscreen');
 
   const isPseudoFullscreen = () => el.player.classList.contains('pseudo-fs');
 
@@ -1248,10 +1327,12 @@
     el.player.addEventListener('animationend', (e) => {
       if (e.animationName.startsWith('fs-')) el.player.classList.remove('fs-anim');
     });
+    if (window.ResizeObserver) new ResizeObserver(fitScaledFrame).observe(el.frameHost);
+    else window.addEventListener('resize', fitScaledFrame);
     el.fsUpdateClose.onclick = hideUpdateHint;
 
     el.retryBtn.onclick = () => state.current && playChannel(state.current, state.sourceIndex);
-    el.nextSourceBtn.onclick = () => {
+    el.nextSourceBtn.onclick = el.externalNext.onclick = () => {
       const ch = state.current;
       if (ch) playChannel(ch, (state.sourceIndex + 1) % ch.sources.length);
     };
@@ -1420,7 +1501,7 @@
     state.nationalTvgIds = new Set([...window.NATIONAL_CHANNELS, ...channels].map((c) => c.tvgId).filter(Boolean));
     applySettings();
     // Tanpa server tidak ada langganan, jadi tanda premium dari daftar bawaan diabaikan.
-    channels.forEach((c) => addChannel({ ...c, premium: Boolean(config && c.premium), sources: [...(c.sources || [])], tags: [], res: null }));
+    channels.forEach((c) => addChannel({ ...c, premium: Boolean(config && c.premium), sources: arrangeSources(c.sources || []), tags: [], res: null }));
     const awaitsPlaylist = state.settings.streaming.playlistEnabled;
     if (!awaitsPlaylist && !state.channels.some((c) => c.groups.includes(state.category))) state.category = 'Semua';
     el.exampleUrl.textContent = useHistory ? basePath + 'indosiar' : '#/indosiar';

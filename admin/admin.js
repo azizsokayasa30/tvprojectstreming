@@ -8,6 +8,7 @@
     iframe: { label: 'Player embed', hint: 'Halaman player resmi yang boleh di-embed.' },
     youtube: { label: 'YouTube live', hint: 'Live 24 jam di channel YouTube resmi.' },
     vidio: { label: 'Vidio.com', hint: 'Halaman live vidio.com ditampilkan di dalam pemutar.' },
+    web: { label: 'Halaman web (dibuka di luar)', hint: 'Untuk situs yang menolak di-embed (mis. Vision+): penonton diberi tombol untuk membuka situs/aplikasinya.' },
   };
   const PAGES = {
     ringkasan: 'Ringkasan',
@@ -440,6 +441,9 @@
         } else v.src = src.url;
       } else if (src.type === 'iframe') {
         preview.append(h('iframe', { src: src.url, allow: 'autoplay; fullscreen; encrypted-media', allowFullscreen: true }));
+      } else if (src.type === 'web') {
+        preview.append(h('p', { text: 'Halaman ini tidak bisa diputar di sini; dibuka di tab baru.' }));
+        window.open(src.url, '_blank', 'noopener');
       } else if (src.type === 'youtube') {
         try {
           const info = await api('GET', `/api/youtube-live?channel=${encodeURIComponent(src.channelId || '')}`);
@@ -467,6 +471,12 @@
           textField(src, 'label', 'Label sumber', { placeholder: 'mis. detik.com (resmi)' }));
         if (src.type === 'youtube') fields.append(textField(src, 'channelId', 'ID channel YouTube', { placeholder: 'UC…', help: 'Diawali "UC", 24 karakter.' }));
         if (src.type === 'vidio') fields.append(textField(src, 'id', 'ID live Vidio', { placeholder: '205-indosiar', help: 'Dari URL vidio.com/live/205-indosiar' }));
+        if (src.type === 'web') fields.append(
+          textField(src, 'url', 'URL halaman', { placeholder: 'https://www.visionplus.id/webclient/live' }),
+          textField(src, 'label', 'Label sumber', { placeholder: 'mis. Vision+ (resmi)' }),
+          h('label', { class: 'field' }, h('span', { text: 'Khusus HP' }),
+            h('span', { class: 'row' }, miniSwitch(src, 'mobileOnly'),
+              h('small', { text: 'Didahulukan di HP, tidak dipakai di komputer.' }))));
         const typeSel = h('select', {
           onchange: (e) => { draft.sources[i] = { type: e.target.value }; drawSources(); },
         }, Object.entries(SOURCE_INFO).map(([v, info]) => h('option', { value: v, text: info.label })));

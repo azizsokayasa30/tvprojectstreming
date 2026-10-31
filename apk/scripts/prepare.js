@@ -30,7 +30,9 @@ const config = {
   appendUserAgent: 'TekdroidFullscreen',
   server: {
     androidScheme: 'https',
-    allowNavigation: ['*.trycloudflare.com', ...(lanUrl ? [new URL(lanUrl).hostname] : [])],
+    // RCTI+ di HP hanya bisa diputar sebagai halaman utama (cookie-nya ditolak di iframe), jadi dibuka di dalam aplikasi.
+    // Login Vidio (lihat native/FrameLoginClient.java) juga harus tetap di dalam aplikasi.
+    allowNavigation: ['*.trycloudflare.com', 'rctiplus.com', '*.rctiplus.com', 'vidio.com', '*.vidio.com', ...(lanUrl ? [new URL(lanUrl).hostname] : [])],
     errorPath: 'error.html',
   },
   android: {
