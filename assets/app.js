@@ -60,7 +60,6 @@
     redeemForm: $('redeemForm'), redeemCode: $('redeemCode'), waBtn: $('waBtn'),
     settingsBtn: $('settingsBtn'), settingsModal: $('settingsModal'), settingsClose: $('settingsClose'), themeChoice: $('themeChoice'),
     splash: $('splash'), splashMark: $('splashMark'), splashName: $('splashName'), splashVersion: $('splashVersion'),
-    updateModal: $('updateModal'), updateVersions: $('updateVersions'), updateBtn: $('updateBtn'), updateLater: $('updateLater'),
   };
 
   const store = {
@@ -1212,7 +1211,7 @@
 
     function blocked(target) {
       if (!target || !target.closest) return true;
-      if (!el.drawer.hidden || !el.subModal.hidden || !el.settingsModal.hidden || !el.updateModal.hidden || isPseudoFullscreen()) return true;
+      if (!el.drawer.hidden || !el.subModal.hidden || !el.settingsModal.hidden || isPseudoFullscreen()) return true;
       return !!target.closest('input, textarea, select, video, .controls, .volume, .quality-menu');
     }
 
@@ -1387,7 +1386,6 @@
         if (!el.drawer.hidden) { closeDrawer(); return; }
         if (!el.subModal.hidden) { el.subModal.hidden = true; return; }
         if (!el.settingsModal.hidden) { el.settingsModal.hidden = true; return; }
-        if (!el.updateModal.hidden) { el.updateLater.click(); return; }
       }
       if (!el.drawer.hidden) return;
       if (e.target.matches('input, select, textarea') || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -1470,40 +1468,8 @@
     }
   }
 
-  // APK 1.0.9+ menulis versinya di user agent; 1.0.6–1.0.8 hanya "TekdroidFullscreen";
-  // yang lebih lama dikenali dari halaman pemuat Capacitor (https://localhost) yang membukanya.
-  const APK_VERSION = (/TekdroidApp\/(\d+\.\d+\.\d+)/.exec(navigator.userAgent) || [])[1] || null;
-  const IS_APK = Boolean(APK_VERSION) || navigator.userAgent.includes('TekdroidFullscreen')
-    || (IN_APP && document.referrer === 'https://localhost/') || (IN_APP && store.get('apk', false));
-  if (IS_APK) store.set('apk', true);
-
-  const isNewer = (a, b) => {
-    const pa = a.split('.').map(Number), pb = b.split('.').map(Number);
-    for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-      if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) > (pb[i] || 0);
-    }
-    return false;
-  };
-
-  function checkApkUpdate(config) {
-    const latest = config && config.apk;
-    // Tanpa tanda versi berarti APK 1.0.8 atau lebih lama.
-    if (!IS_APK || !latest || !isNewer(latest.version, APK_VERSION || '1.0.8')) return;
-    try { if (sessionStorage.getItem('tvn.updateLater') === latest.version) return; } catch { /* storage diblokir */ }
-    el.updateVersions.textContent = APK_VERSION
-      ? `Versi Anda: ${APK_VERSION} · Versi terbaru: ${latest.version}`
-      : `Versi terbaru: ${latest.version}`;
-    if (latest.url) el.updateBtn.href = latest.url;
-    el.updateLater.onclick = () => {
-      el.updateModal.hidden = true;
-      try { sessionStorage.setItem('tvn.updateLater', latest.version); } catch { /* storage diblokir */ }
-    };
-    el.updateModal.hidden = false;
-  }
-
-  // Di APK yang ditampilkan versi aplikasinya, di web versi server.
+  // Di APK (Capacitor) yang ditampilkan versi aplikasinya, di web versi server.
   async function appVersion(config) {
-    if (APK_VERSION) return APK_VERSION;
     const cap = window.Capacitor;
     if (cap && cap.isNativePlatform && cap.isNativePlatform() && cap.nativePromise) {
       try { return (await cap.nativePromise('App', 'getInfo')).version; } catch { /* plugin App tidak tersedia */ }
@@ -1522,18 +1488,13 @@
     setTimeout(() => el.splash.remove(), 600);
   }
 
-  async function startApp(config) {
-    await finishSplash(config);
-    checkApkUpdate(config);
-  }
-
   async function init() {
     // Terapkan pilihan tema pengunjung sebelum menunggu server agar halaman tidak berkedip.
     const savedTheme = store.get('theme', null);
     if (savedTheme) applyTheme(savedTheme);
     bindSettingsEvents();
     const config = await fetchConfig();
-    startApp(config);
+    finishSplash(config);
     const channels = config && config.channels ? config.channels : window.NATIONAL_CHANNELS;
     if (config) state.settings = config;
     state.access = config ? config.access : null;

@@ -26,9 +26,8 @@ const config = {
   appName: 'TEKDROID TV',
   webDir: 'build/www',
   backgroundColor: '#06121f',
-  // Tanda bagi web bahwa APK ini menangani layar penuh + landscape secara native (lihat native/),
-  // plus versinya: halaman online tidak mendapat bridge Capacitor untuk menanyakannya.
-  appendUserAgent: ['TekdroidFullscreen', process.env.APP_VERSION && `TekdroidApp/${process.env.APP_VERSION}`].filter(Boolean).join(' '),
+  // Tanda bagi web bahwa APK ini menangani layar penuh + landscape secara native (lihat native/).
+  appendUserAgent: 'TekdroidFullscreen',
   server: {
     androidScheme: 'https',
     // RCTI+ di HP hanya bisa diputar sebagai halaman utama (cookie-nya ditolak di iframe), jadi dibuka di dalam aplikasi.
