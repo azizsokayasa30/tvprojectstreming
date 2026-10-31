@@ -9,7 +9,7 @@
 window.NATIONAL_CHANNELS = [
   { name: 'RCTI', tvgId: 'RCTI.id', groups: ['Nasional'],
     logo: 'https://i.imgur.com/iLFx8ia.png',
-    sources: [{ type: 'vidio', id: '665-rcti' }] },
+    sources: [{ type: 'iframe', url: 'https://www.rctiplus.com/tv/rcti', label: 'RCTI+ (resmi)' }] },
   { name: 'SCTV', tvgId: 'SCTV.id', groups: ['Nasional'],
     logo: 'https://i.imgur.com/EMmOvnQ.png',
     sources: [{ type: 'vidio', id: '204-sctv' }] },
@@ -33,10 +33,10 @@ window.NATIONAL_CHANNELS = [
     sources: [{ type: 'vidio', id: '782-antv' }] },
   { name: 'MNCTV', tvgId: 'MNCTV.id', groups: ['Nasional'],
     logo: 'https://i.imgur.com/SK8pjQy.png',
-    sources: [{ type: 'vidio', id: '870-mnctv' }] },
+    sources: [{ type: 'iframe', url: 'https://www.rctiplus.com/tv/mnctv', label: 'RCTI+ (resmi)' }] },
   { name: 'GTV', tvgId: 'GTV.id', groups: ['Nasional'],
     logo: 'https://i.imgur.com/jjuKnYs.png',
-    sources: [{ type: 'vidio', id: '778-gtv' }] },
+    sources: [{ type: 'iframe', url: 'https://www.rctiplus.com/tv/gtv', label: 'RCTI+ (resmi)' }] },
   { name: 'tvOne', tvgId: 'tvOne.id', groups: ['Nasional', 'Berita'],
     logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/TvOne_2023.svg/960px-TvOne_2023.svg.png',
     sources: [
@@ -58,7 +58,7 @@ window.NATIONAL_CHANNELS = [
   { name: 'iNews', tvgId: 'iNews.id', groups: ['Nasional', 'Berita'],
     logo: 'https://i.imgur.com/M2R3lfg.png',
     sources: [
-      { type: 'vidio', id: '5409-inews' },
+      { type: 'iframe', url: 'https://www.rctiplus.com/tv/inews', label: 'RCTI+ (resmi)' },
       { type: 'youtube', channelId: 'UCoSkllfpgmFHtbVK835QaQg' },
     ] },
   { name: 'CNN Indonesia', tvgId: 'CNNIndonesia.id', groups: ['Nasional', 'Berita'], aliases: ['cnn'],
