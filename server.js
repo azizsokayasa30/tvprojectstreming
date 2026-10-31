@@ -72,7 +72,7 @@ function defaultConfig() {
     site: {
       name: 'TEKDROID TV',
       logoUrl: '',
-      accent: '#e5203a',
+      accent: '#0ea5e9',
       theme: 'dark',
       welcomeTitle: 'Nonton TV Indonesia, live.',
       welcomeText: 'Pilih channel dari daftar untuk mulai menonton.',
@@ -194,7 +194,7 @@ function sanitizeConfig(input, current) {
     site: {
       name: str(site.name, 60) || 'TEKDROID TV',
       logoUrl: url(site.logoUrl),
-      accent: color(site.accent, '#e5203a'),
+      accent: color(site.accent, '#0ea5e9'),
       theme: oneOf(site.theme, ['dark', 'light'], 'dark'),
       welcomeTitle: str(site.welcomeTitle, 120),
       welcomeText: str(site.welcomeText, 400),
@@ -473,9 +473,11 @@ async function hlsLive(target, depth = 0) {
   if (r.buf[0] === 0x47) return true; // langsung stream MPEG-TS
   const text = r.buf.toString('utf8').replace(/^\uFEFF/, '').trimStart();
   if (!text.startsWith('#EXTM3U')) return false;
-  if (text.includes('#EXTINF')) return true;
-  const variant = text.split(/\r?\n/).map((l) => l.trim()).find((l) => l && !l.startsWith('#'));
-  return Boolean(variant) && depth < 2 && hlsLive(new URL(variant, r.url).href, depth + 1);
+  const next = text.split(/\r?\n/).map((l) => l.trim()).find((l) => l && !l.startsWith('#'));
+  if (!next) return false;
+  // Playlist bisa tetap terbaca walau segmen videonya error, jadi segmen pertama ikut dicek.
+  if (text.includes('#EXTINF')) return Boolean(await fetchHead(new URL(next, r.url).href, 1024));
+  return depth < 2 && hlsLive(new URL(next, r.url).href, depth + 1);
 }
 
 async function sourceLive(s) {

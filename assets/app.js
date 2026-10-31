@@ -5,7 +5,7 @@
   // Dipakai jika server tidak berjalan (mis. index.html dibuka langsung dari file://).
   const FALLBACK_CONFIG = {
     site: {
-      name: 'TEKDROID TV', logoUrl: '', accent: '#e5203a', theme: 'dark',
+      name: 'TEKDROID TV', logoUrl: '', accent: '#0ea5e9', theme: 'dark',
       welcomeTitle: 'Nonton TV Indonesia, live.', welcomeText: 'Pilih channel dari daftar untuk mulai menonton.',
       announcement: { enabled: false, text: '', tone: 'info' }, sidebarPosition: 'right',
       showQuickGrid: true, quickGridCount: 18, defaultCategory: 'Semua', footerText: '',
@@ -20,7 +20,7 @@
   const PING_EVERY_MS = 3000;
   const LIVE_EVERY_MS = 60000;
   const PING_TIMEOUT_MS = 5000;
-  const CATEGORY_ORDER = ['Semua', 'Nasional', 'Berita', 'TVRI Daerah', 'Daerah & Lainnya', 'Religi', 'Anak & Edukasi'];
+  const CATEGORY_ORDER = ['Semua', 'Nasional', 'Berita', 'Olahraga', 'TVRI Daerah', 'Daerah & Lainnya', 'Religi', 'Anak & Edukasi'];
   const REGION_NAMES = {
     'Central Java': 'Jawa Tengah', 'East Java': 'Jawa Timur', 'West Java': 'Jawa Barat',
     'Central Kalimantan': 'Kalimantan Tengah', 'East Kalimantan': 'Kalimantan Timur',
@@ -216,9 +216,11 @@
   function groupsFor(name, groupTitle) {
     const g = (groupTitle || '').split(';');
     const out = [];
-    if (/^TVRI (Sport|World)\b/.test(name)) return ['Nasional'];
+    if (/^TVRI Sport\b/.test(name)) return ['Olahraga', 'Nasional'];
+    if (/^TVRI World\b/.test(name)) return ['Nasional'];
     if (/^TVRI\b/.test(name)) out.push('TVRI Daerah');
     if (g.some((x) => ['News', 'Business', 'Legislative'].includes(x))) out.push('Berita');
+    if (g.includes('Sports')) out.push('Olahraga');
     if (g.includes('Religious')) out.push('Religi');
     if (g.some((x) => ['Kids', 'Education'].includes(x))) out.push('Anak & Edukasi');
     if (!out.length || (!out.includes('TVRI Daerah') && !out.includes('Religi') && !out.includes('Anak & Edukasi'))) {
@@ -288,17 +290,30 @@
 
   // ---------- Daftar & filter ----------
 
+  // Channel playlist yang terdeteksi mati oleh server disembunyikan, dan muncul lagi saat siarannya kembali.
+  function channelOffline(ch) {
+    const live = state.live;
+    if (ch.id || ch === state.current || !live || !live.checkedAt) return false;
+    const src = ch.sources[0];
+    return Boolean(src) && live.playlist[src.url] === false;
+  }
+
+  function listedChannels() {
+    return state.channels.filter((c) => !channelOffline(c));
+  }
+
   function visibleChannels() {
     const q = state.query.trim().toLowerCase();
-    return state.channels.filter((c) =>
+    return listedChannels().filter((c) =>
       (state.category === 'Semua' || c.groups.includes(state.category)) &&
       (!q || c.name.toLowerCase().includes(q) || c.slug.includes(slugify(q))));
   }
 
   function renderChips() {
     const counts = {};
-    for (const c of state.channels) for (const g of c.groups) counts[g] = (counts[g] || 0) + 1;
-    counts['Semua'] = state.channels.length;
+    const listed = listedChannels();
+    for (const c of listed) for (const g of c.groups) counts[g] = (counts[g] || 0) + 1;
+    counts['Semua'] = listed.length;
     el.drawerNav.innerHTML = '';
     const custom = Object.keys(counts).filter((c) => !CATEGORY_ORDER.includes(c));
     for (const cat of [...CATEGORY_ORDER, ...custom]) {
@@ -383,6 +398,12 @@
         const res = await fetch(`${basePath}api/live`, { cache: 'no-store' });
         if (res.ok) state.live = await res.json();
       } catch { /* offline */ }
+      const offline = state.channels.filter(channelOffline).map((c) => c.slug).join();
+      if (offline !== state.offlineKey) {
+        state.offlineKey = offline;
+        renderChips();
+        renderList();
+      }
       for (const b of el.list.querySelectorAll('.item')) {
         const ch = state.bySlug.get(b.dataset.slug);
         if (ch) b.classList.toggle('live', channelLive(ch));
@@ -453,7 +474,7 @@
   function canAutoplay(ch) {
     if (isLocked(ch)) return !!activeAccess();
     const src = ch.sources[0];
-    return !!src && src.type !== 'vidio';
+    return !!src && src.type !== 'vidio' && !channelOffline(ch);
   }
 
   // Sekali per kunjungan: bila dibuka di beranda, langsung putar channel terakhir atau channel pertama yang bisa diputar.
@@ -1452,7 +1473,7 @@
   function applyTheme(theme) {
     const light = theme === 'light';
     document.body.classList.toggle('light', light);
-    document.querySelector('meta[name="theme-color"]').content = light ? '#ffffff' : '#0a0e17';
+    document.querySelector('meta[name="theme-color"]').content = light ? '#ffffff' : '#06121f';
     for (const b of el.themeChoice.querySelectorAll('[data-theme]')) {
       const on = b.dataset.theme === (light ? 'light' : 'dark');
       b.classList.toggle('on', on);
