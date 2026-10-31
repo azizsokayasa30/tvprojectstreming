@@ -5,6 +5,7 @@
   "description": "Web live streaming TV Indonesia",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js --dev"
+    "dev": "node --watch server.js --dev",
+    "online": "node scripts/online.js"
   }
 }

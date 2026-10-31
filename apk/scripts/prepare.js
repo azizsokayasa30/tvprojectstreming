@@ -1,17 +1,23 @@
 // Menyiapkan proyek Capacitor sebelum build:
-//   node scripts/prepare.js http://192.168.0.168:8080
-// - menulis capacitor.config.json dengan alamat server
-// - menyalin www/ ke build/www/ dengan alamat server terisi
+//   node scripts/prepare.js [alamat-server-wifi]
+// - menulis capacitor.config.json
+// - menyalin www/ ke build/www/ dengan repo pengumuman alamat & alamat Wi-Fi cadangan terisi
 // - membuat gambar ikon & splash di assets/ untuk @capacitor/assets
+// Aplikasi membuka www/index.html, yang mencari alamat server terbaru (lihat scripts/online.js di root).
 const fs = require('fs');
 const path = require('path');
 const sharp = require('sharp');
 
 const ROOT = path.join(__dirname, '..');
-const serverUrl = (process.argv[2] || process.env.SERVER_URL || '').trim().replace(/\/+$/, '');
+const lanUrl = (process.argv[2] || process.env.SERVER_URL || '').trim().replace(/\/+$/, '');
+const urlRepo = (process.env.URL_REPO || process.env.GITHUB_REPOSITORY || 'azizsokayasa30/tvprojectstreming').trim();
 
-if (!/^https?:\/\/[^\s/]+/i.test(serverUrl)) {
-  console.error('Alamat server tidak valid. Contoh: node scripts/prepare.js http://192.168.0.168:8080');
+if (lanUrl && !/^https?:\/\/[^\s/]+$/i.test(lanUrl)) {
+  console.error('Alamat server Wi-Fi tidak valid. Contoh: node scripts/prepare.js http://192.168.2.101:8080');
+  process.exit(1);
+}
+if (!/^[\w.-]+\/[\w.-]+$/.test(urlRepo)) {
+  console.error('URL_REPO harus berbentuk pemilik/nama-repo.');
   process.exit(1);
 }
 
@@ -21,8 +27,8 @@ const config = {
   webDir: 'build/www',
   backgroundColor: '#0a0e17',
   server: {
-    url: serverUrl,
-    cleartext: serverUrl.startsWith('http:'),
+    androidScheme: 'https',
+    allowNavigation: ['*.trycloudflare.com', ...(lanUrl ? [new URL(lanUrl).host] : [])],
     errorPath: 'error.html',
   },
   android: {
@@ -37,7 +43,7 @@ fs.rmSync(path.join(ROOT, 'build'), { recursive: true, force: true });
 fs.mkdirSync(outDir, { recursive: true });
 for (const file of fs.readdirSync(path.join(ROOT, 'www'))) {
   const html = fs.readFileSync(path.join(ROOT, 'www', file), 'utf8');
-  fs.writeFileSync(path.join(outDir, file), html.replaceAll('__SERVER_URL__', serverUrl));
+  fs.writeFileSync(path.join(outDir, file), html.replaceAll('__SERVER_URL__', lanUrl).replaceAll('__URL_REPO__', urlRepo));
 }
 
 async function makeAssets() {
@@ -62,7 +68,7 @@ async function makeAssets() {
 }
 
 makeAssets().then(() => {
-  console.log(`Siap build. Aplikasi akan membuka: ${serverUrl}`);
+  console.log(`Siap build. Alamat server dibaca dari github.com/${urlRepo} (branch server-url)${lanUrl ? `, cadangan Wi-Fi: ${lanUrl}` : ''}.`);
 }).catch((err) => {
   console.error(err);
   process.exit(1);

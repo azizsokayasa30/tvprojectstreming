@@ -587,14 +587,23 @@ function readBody(req) {
   });
 }
 
+// Lewat Cloudflare Tunnel semua permintaan datang dari localhost; alamat asli pengunjung ada di header CF.
+// Header itu hanya dipercaya dari localhost agar tidak bisa dipalsukan pengunjung di jaringan lokal.
+function clientIp(req) {
+  const addr = req.socket.remoteAddress || '';
+  const loopback = addr === '127.0.0.1' || addr === '::1' || addr === '::ffff:127.0.0.1';
+  const forwarded = req.headers['cf-connecting-ip'];
+  return loopback && typeof forwarded === 'string' && forwarded ? forwarded : addr;
+}
+
 async function handleApi(req, res, url) {
   const p = url.pathname;
-  const ip = req.socket.remoteAddress || '';
+  const ip = clientIp(req);
   const isJson = (req.headers['content-type'] || '').startsWith('application/json');
   if (req.method !== 'GET' && !isJson) return sendJson(res, 415, { error: 'Gunakan application/json' });
 
   if (p === '/api/ping') {
-    res.writeHead(204, { 'Cache-Control': 'no-store' });
+    res.writeHead(204, { 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' });
     return res.end();
   }
 

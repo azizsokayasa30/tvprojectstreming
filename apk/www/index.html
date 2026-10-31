@@ -2,8 +2,89 @@
 <html lang="id">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="refresh" content="0; url=__SERVER_URL__">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>TEKDROID TV</title>
+  <style>
+    html, body { margin: 0; height: 100%; }
+    body {
+      display: grid; place-items: center; padding: 24px; box-sizing: border-box; text-align: center;
+      font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #e7ecf5;
+      background: radial-gradient(600px 400px at 0% 0%, rgba(229, 32, 58, .25), transparent 65%),
+        radial-gradient(600px 400px at 100% 100%, rgba(79, 70, 229, .25), transparent 65%), #0a0e17;
+    }
+    h1 { font-size: 20px; margin: 16px 0 8px; }
+    p { color: #8d98b3; margin: 0 0 20px; max-width: 420px; }
+    button {
+      border: 0; border-radius: 12px; padding: 12px 22px; font: inherit; font-weight: 700; color: #fff;
+      background: linear-gradient(135deg, #e5203a, #8b1fd6); box-shadow: 0 10px 24px -10px rgba(229, 32, 58, .8);
+    }
+    .spin { width: 28px; height: 28px; margin: 4px auto 0; border-radius: 50%; border: 3px solid rgba(255, 255, 255, .15); border-top-color: #ff3b55; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    [hidden] { display: none !important; }
+  </style>
 </head>
-<body style="background:#0a0e17"></body>
+<body>
+  <main>
+    <svg width="72" height="72" viewBox="0 0 32 32"><defs><linearGradient id="g" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ff3b55"/><stop offset="1" stop-color="#7c3aed"/></linearGradient></defs><path d="M12 8 9 3.5M20 8l3-4.5" stroke="url(#g)" stroke-width="2.2" stroke-linecap="round"/><rect x="3" y="8" width="26" height="19.5" rx="6" fill="url(#g)"/><path d="M13.5 13.2v8.8l7.6-4.4z" fill="#fff"/></svg>
+    <h1 id="title">Menghubungkan…</h1>
+    <p id="text">Mencari server TEKDROID TV.</p>
+    <div class="spin" id="spin"></div>
+    <button type="button" id="retry" hidden>Coba lagi</button>
+  </main>
+  <script>
+    // Alamat publik server (Cloudflare Tunnel) berganti-ganti; yang terbaru diumumkan di GitHub oleh `npm run online`.
+    var LOOKUPS = [
+      'https://raw.githubusercontent.com/__URL_REPO__/server-url/server-url.json?t=' + Date.now(),
+      'https://api.github.com/repos/__URL_REPO__/contents/server-url.json?ref=server-url',
+    ];
+    var LAN_URL = '__SERVER_URL__';
+    var CACHE_KEY = 'tekdroid.serverUrl';
+
+    function withTimeout(promise, ms) {
+      return Promise.race([promise, new Promise(function (_, reject) { setTimeout(function () { reject(new Error('timeout')); }, ms); })]);
+    }
+
+    function lookup(src) {
+      var opts = src.indexOf('api.github.com') > -1 ? { headers: { Accept: 'application/vnd.github.raw+json' } } : {};
+      return withTimeout(fetch(src, opts), 8000)
+        .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+        .then(function (d) { if (!/^https:\/\/[\w.-]+$/.test(d.url || '')) throw new Error('alamat tidak valid'); return d.url; });
+    }
+
+    // Tunnel yang sudah mati tetap dijawab Cloudflare (HTTP 530), jadi statusnya harus dibaca.
+    function alive(url) {
+      return withTimeout(fetch(url + '/api/ping', { cache: 'no-store' }), 6000)
+        .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return url; });
+    }
+
+    function firstAlive(candidates) {
+      return candidates.reduce(function (chain, getUrl) {
+        return chain.catch(function () { return getUrl().then(alive); });
+      }, Promise.reject());
+    }
+
+    function connect() {
+      document.getElementById('title').textContent = 'Menghubungkan…';
+      document.getElementById('text').textContent = 'Mencari server TEKDROID TV.';
+      document.getElementById('spin').hidden = false;
+      document.getElementById('retry').hidden = true;
+      var cached = localStorage.getItem(CACHE_KEY);
+      var candidates = LOOKUPS.map(function (src) { return function () { return lookup(src); }; });
+      if (cached) candidates.push(function () { return Promise.resolve(cached); });
+      if (/^https?:\/\//.test(LAN_URL)) candidates.push(function () { return Promise.resolve(LAN_URL); });
+      firstAlive(candidates).then(function (url) {
+        localStorage.setItem(CACHE_KEY, url);
+        location.replace(url);
+      }, function () {
+        document.getElementById('title').textContent = 'Server sedang tidak aktif';
+        document.getElementById('text').textContent = 'Komputer server TEKDROID TV mungkin mati atau belum menjalankan "TEKDROID TV Online". Coba lagi sebentar lagi.';
+        document.getElementById('spin').hidden = true;
+        document.getElementById('retry').hidden = false;
+      });
+    }
+
+    document.getElementById('retry').onclick = connect;
+    connect();
+  </script>
+</body>
 </html>
