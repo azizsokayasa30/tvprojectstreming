@@ -5,8 +5,8 @@
   --line: #242a38;
   --text: #e9ecf2;
   --muted: #8b93a7;
-  --accent: #e5203a;
-  --accent-2: #ff4d63;
+  --accent: #0ea5e9;
+  --accent-2: #38bdf8;
   --ok: #2fbf71;
   --warn: #f0a92b;
   color-scheme: dark;
@@ -46,7 +46,7 @@ input[type=text], input[type=password], input[type=url], input[type=number], inp
   background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; width: 100%;
 }
 textarea { min-height: 90px; resize: vertical; }
-input:focus, select:focus, textarea:focus { outline: 2px solid rgba(229, 32, 58, .5); border-color: var(--accent); }
+input:focus, select:focus, textarea:focus { outline: 2px solid rgba(14, 165, 233, .5); border-color: var(--accent); }
 input[type=color] { width: 54px; height: 38px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel-2); padding: 3px; }
 
 .switch { display: flex; align-items: center; gap: 12px; cursor: pointer; }
@@ -59,7 +59,7 @@ input[type=color] { width: 54px; height: 38px; border: 1px solid var(--line); bo
 
 /* Login */
 .login { min-height: 100vh; display: grid; place-items: center; padding: 20px;
-  background: radial-gradient(800px 400px at 50% 0%, rgba(229, 32, 58, .2), transparent 70%), var(--bg); }
+  background: radial-gradient(800px 400px at 50% 0%, rgba(14, 165, 233, .22), transparent 70%), var(--bg); }
 .login-card { width: min(380px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 26px; display: flex; flex-direction: column; gap: 16px; }
 .login-brand, .nav-brand { display: flex; align-items: center; gap: 12px; }
 .login-brand svg, .nav-brand svg { width: 38px; height: 38px; }
@@ -72,7 +72,7 @@ input[type=color] { width: 54px; height: 38px; border: 1px solid var(--line); bo
 .nav nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }
 .nav nav a { color: var(--muted); text-decoration: none; padding: 9px 12px; border-radius: 10px; font-weight: 600; }
 .nav nav a:hover { background: var(--panel-2); color: var(--text); }
-.nav nav a.on { background: rgba(229, 32, 58, .15); color: #fff; box-shadow: inset 3px 0 0 var(--accent); }
+.nav nav a.on { background: rgba(14, 165, 233, .16); color: #fff; box-shadow: inset 3px 0 0 var(--accent); }
 .nav-foot { display: flex; flex-direction: column; gap: 8px; }
 .main { min-width: 0; }
 .topbar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;

@@ -2,7 +2,7 @@
 //   hls     : stream HLS resmi milik stasiun (resolusi bisa diatur dari web ini)
 //   iframe  : player resmi stasiun yang boleh di-embed (resolusi diatur di player tsb)
 //   youtube : live 24 jam di channel YouTube resmi; ID video live dicari oleh server.js
-//   vidio   : siaran resmi di Vidio. Vidio tidak mengizinkan embed, jadi ditampilkan tombol "Tonton di Vidio".
+//   vidio   : siaran resmi di Vidio, ditampilkan sebagai halaman web vidio.com di dalam pemutar.
 // Channel daerah dimuat otomatis dari playlist publik iptv-org (lihat PLAYLIST_URL di app.js).
 window.NATIONAL_CHANNELS = [
   { name: 'RCTI', tvgId: 'RCTI.id', groups: ['Nasional'],
@@ -105,38 +105,38 @@ window.NATIONAL_CHANNELS = [
     logo: 'https://i.imgur.com/xyLLLOi.png',
     sources: [{ type: 'vidio', id: '5415-jaktv' }] },
 
-  // Olahraga: hanya channel gratis yang disiarkan resmi oleh pemiliknya sendiri.
-  { name: 'TVRI Sport', tvgId: 'TVRISport.id', groups: ['Olahraga', 'Nasional'],
+  // Olahraga: hanya channel gratis yang disiarkan resmi oleh pemiliknya sendiri; di aplikasi dikunci untuk pelanggan.
+  { name: 'TVRI Sport', tvgId: 'TVRISport.id', groups: ['Olahraga', 'Nasional'], premium: true,
     logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/TVRI_Sport_2022.svg/960px-TVRI_Sport_2022.svg.png',
     sources: [{ type: 'hls', url: 'https://ott-balancer.tvri.go.id/live/eds/SportHD/hls/SportHD.m3u8' }] },
-  { name: 'beIN SPORTS XTRA', tvgId: 'beINSPORTSXTRA.us', groups: ['Olahraga'],
+  { name: 'beIN SPORTS XTRA', tvgId: 'beINSPORTSXTRA.us', groups: ['Olahraga'], premium: true,
     logo: 'https://i.ibb.co/HT49GPmB/XTRA-2.png',
     sources: [{ type: 'hls', url: 'https://bein-xtra-bein.amagi.tv/playlist.m3u8' }] },
-  { name: 'FIFA+', tvgId: 'FIFAPlus.uk', groups: ['Olahraga'], aliases: ['fifa'],
+  { name: 'FIFA+', tvgId: 'FIFAPlus.uk', groups: ['Olahraga'], premium: true, aliases: ['fifa'],
     logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/FIFA%2B_(2025).svg/960px-FIFA%2B_(2025).svg.png',
     sources: [{ type: 'hls', url: 'https://d2w9q46ikgrcwx.cloudfront.net/v1/master/3722c60a815c199d9c0ef36c5b73da68a62b09d1/cc-of5cbk3sav3w5/v1/sysdata_s_p_a_fifa_7/samsungheadend_us/latest/main/hls/playlist.m3u8' }] },
-  { name: 'Real Madrid TV', tvgId: 'RealMadridTV.es', groups: ['Olahraga'],
+  { name: 'Real Madrid TV', tvgId: 'RealMadridTV.es', groups: ['Olahraga'], premium: true,
     logo: 'https://i.imgur.com/5pMo7dL.png',
     sources: [{ type: 'hls', url: 'https://rmtv.akamaized.net/hls/live/2043153/rmtv-es-web/master.m3u8' }] },
-  { name: 'Red Bull TV', tvgId: 'RedBullTV.at', groups: ['Olahraga'],
+  { name: 'Red Bull TV', tvgId: 'RedBullTV.at', groups: ['Olahraga'], premium: true,
     logo: 'https://images.pluto.tv/channels/5e7cb84a172a0f0007da69e4/colorLogoPNG.png',
     sources: [{ type: 'hls', url: 'https://rbmn-live.akamaized.net/hls/live/590964/BoRB-AT/master.m3u8' }] },
-  { name: 'PGA Tour', tvgId: 'PGATour.us', groups: ['Olahraga'],
+  { name: 'PGA Tour', tvgId: 'PGATour.us', groups: ['Olahraga'], premium: true,
     logo: 'https://i.imgur.com/J0TY9dG.png',
     sources: [{ type: 'hls', url: 'https://d11k1mnrgfposz.cloudfront.net/playlist.m3u8' }] },
-  { name: 'Tennis Channel', tvgId: 'TennisChannel.us', groups: ['Olahraga'],
+  { name: 'Tennis Channel', tvgId: 'TennisChannel.us', groups: ['Olahraga'], premium: true,
     logo: 'https://i.imgur.com/tsljAnY.png',
     sources: [{ type: 'hls', url: 'https://cdn-ue1-prod.tsv2.amagi.tv/linear/amg01444-tennischannelth-tennischannelnl-samsungnl/playlist.m3u8' }] },
-  { name: 'Stadium', tvgId: 'Stadium.us', groups: ['Olahraga'],
+  { name: 'Stadium', tvgId: 'Stadium.us', groups: ['Olahraga'], premium: true,
     logo: 'https://upload.wikimedia.org/wikipedia/en/thumb/5/53/Stadium_%28sports_network%29_logo.svg/960px-Stadium_%28sports_network%29_logo.svg.png',
     sources: [{ type: 'hls', url: 'https://wurl120sports.global.transmit.live/hls/679a907dce42a042c23ace37/v1/stadium_gracenote/samsung_us/latest/main/hls/playlist.m3u8' }] },
-  { name: 'FUEL TV', tvgId: 'FUELTV.pt', groups: ['Olahraga'],
+  { name: 'FUEL TV', tvgId: 'FUELTV.pt', groups: ['Olahraga'], premium: true,
     logo: 'https://i.imgur.com/I8mviBy.png',
     sources: [{ type: 'hls', url: 'https://amg01074-fueltv-fueltvemeaen-rakuten-b6j62.amagi.tv/hls/amagi_hls_data_rakutenAA-fueltvemeaen/CDN/master.m3u8' }] },
-  { name: 'RACER', tvgId: 'RACERInternational.pl', groups: ['Olahraga'],
+  { name: 'RACER', tvgId: 'RACERInternational.pl', groups: ['Olahraga'], premium: true,
     logo: 'https://provider-static.plex.tv/epg/cms/production/dd4e5871-4347-49e3-9ea1-a8770ea9c518/RACER_Intl_logo_1500x1000.png',
     sources: [{ type: 'hls', url: 'https://amg00378-mavtv-amg00378c2-rakuten-us-1048.playouts.now.amagi.tv/playlist/amg00378-mavtvfast-motorsportsnetwork-rakutenus/playlist.m3u8' }] },
-  { name: 'FloRacing', tvgId: 'FloRacing.us', groups: ['Olahraga'],
+  { name: 'FloRacing', tvgId: 'FloRacing.us', groups: ['Olahraga'], premium: true,
     logo: 'https://images.fubo.tv/channel-config-ui/station-logos/on-dark/floracing-white.png',
     sources: [{ type: 'hls', url: 'https://amg02278-amg02278c1-flosports-worldwide-7592.playouts.now.amagi.tv/playlist.m3u8' }] },
 ];

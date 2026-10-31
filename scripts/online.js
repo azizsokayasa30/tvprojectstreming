@@ -81,7 +81,7 @@ function launcherPage(url) {
   <title>TEKDROID TV</title>
 </head>
 <body style="background:#0a0e17;color:#e7ecf5;font:15px system-ui,sans-serif;display:grid;place-items:center;height:100vh;margin:0">
-  <p>Membuka TEKDROID TV… <a style="color:#ff3b55" href="${safe}">klik di sini</a> bila tidak terbuka otomatis.</p>
+  <p>Membuka TEKDROID TV… <a style="color:#0ea5e9" href="${safe}">klik di sini</a> bila tidak terbuka otomatis.</p>
   <script>location.replace(${JSON.stringify(safe)});</script>
 </body>
 </html>

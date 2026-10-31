@@ -25,7 +25,7 @@ const config = {
   appId: 'id.tekdroid.tv',
   appName: 'TEKDROID TV',
   webDir: 'build/www',
-  backgroundColor: '#0a0e17',
+  backgroundColor: '#06121f',
   // Tanda bagi web bahwa APK ini menangani layar penuh + landscape secara native (lihat native/).
   appendUserAgent: 'TekdroidFullscreen',
   server: {
@@ -52,7 +52,7 @@ async function makeAssets() {
   const dir = path.join(ROOT, 'assets');
   fs.mkdirSync(dir, { recursive: true });
   const icon = fs.readFileSync(path.join(ROOT, 'resources', 'icon.svg'));
-  const bg = { r: 10, g: 14, b: 23, alpha: 1 };
+  const bg = { r: 6, g: 18, b: 31, alpha: 1 };
 
   await sharp(icon).resize(1024, 1024).png().toFile(path.join(dir, 'icon-only.png'));
   // Ikon adaptif Android: gambar TV di lapisan depan, gradasi di lapisan belakang.
@@ -62,7 +62,8 @@ async function makeAssets() {
   await sharp(Buffer.from(shapes)).resize(1024, 1024).png().toFile(path.join(dir, 'icon-foreground.png'));
   await sharp(Buffer.from(background)).resize(1024, 1024).png().toFile(path.join(dir, 'icon-background.png'));
 
-  const logo = await sharp(icon).resize(560, 560).png().toBuffer();
+  const corners = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="560" height="560"><rect width="560" height="560" rx="128"/></svg>');
+  const logo = await sharp(icon).resize(560, 560).composite([{ input: corners, blend: 'dest-in' }]).png().toBuffer();
   for (const name of ['splash.png', 'splash-dark.png']) {
     await sharp({ create: { width: 2732, height: 2732, channels: 4, background: bg } })
       .composite([{ input: logo, gravity: 'center' }]).png().toFile(path.join(dir, name));

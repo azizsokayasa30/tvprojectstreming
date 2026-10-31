@@ -17,9 +17,7 @@
     payment: { enabled: false },
   };
   const SPLASH_MIN_MS = 2200;
-  const PING_EVERY_MS = 3000;
   const LIVE_EVERY_MS = 60000;
-  const PING_TIMEOUT_MS = 5000;
   const CATEGORY_ORDER = ['Semua', 'Nasional', 'Berita', 'Olahraga', 'TVRI Daerah', 'Daerah & Lainnya', 'Religi', 'Anak & Edukasi'];
   const REGION_NAMES = {
     'Central Java': 'Jawa Tengah', 'East Java': 'Jawa Timur', 'West Java': 'Jawa Barat',
@@ -44,6 +42,7 @@
     playBtn: $('playBtn'), muteBtn: $('muteBtn'), volume: $('volume'), ctlTitle: $('ctlTitle'),
     qualityBtn: $('qualityBtn'), qualityBadge: $('qualityBadge'), qualityMenu: $('qualityMenu'),
     pipBtn: $('pipBtn'), fsBtn: $('fsBtn'), fsCorner: $('fsCorner'),
+    fsUpdate: $('fsUpdate'), fsUpdateClose: $('fsUpdateClose'),
     infobar: $('infobar'), nowLogo: $('nowLogo'), nowName: $('nowName'), nowMeta: $('nowMeta'),
     qualitySelect: $('qualitySelect'),
     copyBtn: $('copyBtn'), fsInfoBtn: $('fsInfoBtn'),
@@ -54,16 +53,10 @@
     welcomeTitle: $('welcomeTitle'), welcomeText: $('welcomeText'), announce: $('announce'),
     layout: $('layout'), footer: $('footer'),
     paywallLogo: $('paywallLogo'), paywallTitle: $('paywallTitle'), paywallForm: $('paywallForm'),
-    paywallCode: $('paywallCode'), paywallPlans: $('paywallPlans'),
+    paywallCode: $('paywallCode'), paywallPlans: $('paywallPlans'), paywallPrice: $('paywallPrice'),
     subscribeBtn: $('subscribeBtn'), subscribeText: $('subscribeText'), subModal: $('subModal'), subClose: $('subClose'),
     accessStatus: $('accessStatus'), plans: $('plans'), payMethods: $('payMethods'), payInstructions: $('payInstructions'),
-    redeemForm: $('redeemForm'), redeemCode: $('redeemCode'),
-    ping: $('ping'), pingValue: $('pingValue'), clock: $('clock'),
-    auth: $('auth'), authMark: $('authMark'), authName: $('authName'), authTitle: $('authTitle'), authSub: $('authSub'),
-    authTabs: $('authTabs'), loginForm: $('loginForm'), registerForm: $('registerForm'), authClose: $('authClose'),
-    loginBtn: $('loginBtn'), account: $('account'), accountBtn: $('accountBtn'), accountAvatar: $('accountAvatar'),
-    accountMenu: $('accountMenu'), accountName: $('accountName'), accountLogin: $('accountLogin'), accountPlan: $('accountPlan'),
-    passBtn: $('passBtn'), logoutBtn: $('logoutBtn'), passModal: $('passModal'), passClose: $('passClose'), passForm: $('passForm'),
+    redeemForm: $('redeemForm'), redeemCode: $('redeemCode'), waBtn: $('waBtn'),
     settingsBtn: $('settingsBtn'), settingsModal: $('settingsModal'), settingsClose: $('settingsClose'), themeChoice: $('themeChoice'),
     splash: $('splash'), splashMark: $('splashMark'), splashName: $('splashName'), splashVersion: $('splashVersion'),
   };
@@ -92,12 +85,12 @@
     playlistLoaded: false,
     settings: FALLBACK_CONFIG,
     nationalTvgIds: new Set(),
-    user: null,
+    access: null,
     live: null,
   };
 
   const activeAccess = () => {
-    const a = state.user && state.user.access;
+    const a = state.access;
     return a && a.expiresAt > Date.now() ? a : null;
   };
 
@@ -148,14 +141,14 @@
 
   function sourceLabel(src) {
     switch (src.type) {
-      case 'vidio': return 'Vidio (buka di tab baru)';
+      case 'vidio': return 'Vidio.com';
       case 'youtube': return 'YouTube (resmi)';
       case 'iframe': return src.label || 'Player resmi';
       default: return src.origin === 'playlist' ? 'Stream publik (HLS)' : 'Stream resmi (HLS)';
     }
   }
 
-  const MODE_BY_TYPE = { hls: 'hls', iframe: 'frame', youtube: 'frame', vidio: 'external' };
+  const MODE_BY_TYPE = { hls: 'hls', iframe: 'frame', youtube: 'frame', vidio: 'frame' };
 
   function onlyExternal(ch) {
     return ch.sources.length > 0 && ch.sources.every((s) => s.type === 'vidio');
@@ -363,7 +356,7 @@
       btn.dataset.slug = ch.slug;
       btn.appendChild(logoBox(ch));
       const tags = [];
-      if (ch.premium) tags.push('<span class="tag gold">Premium</span>');
+      if (ch.premium) tags.push('<span class="tag premium"><svg><use href="#i-star"/></svg>Premium</span>');
       if (ch.res) tags.push(`<span class="tag">${escapeHtml(ch.res)}</span>`);
       if (onlyExternal(ch)) tags.push('<span class="tag">di Vidio</span>');
       for (const t of ch.tags || []) {
@@ -578,7 +571,8 @@
     highlightActive();
 
     if (src.type === 'vidio') {
-      showExternal(ch, src);
+      setLoading(true);
+      playFrame(`https://www.vidio.com/live/${encodeURIComponent(src.id)}`);
     } else if (src.type === 'iframe') {
       setLoading(true);
       playFrame(src.url);
@@ -609,12 +603,9 @@
         if (res.ok) {
           ch.sources = (await res.json()).sources || [];
           if (ch.sources.length) { playChannel(ch, 0); return; }
-        } else if (res.status === 401) {
-          sessionExpired();
-          return;
         } else if (res.status === 403) {
-          setUser({ ...state.user, access: null });
-          toast('Masa aktif akses premium Anda sudah berakhir.');
+          setAccess(null);
+          toast('Masa aktif langganan Anda sudah berakhir.');
         }
       } catch { /* server tidak bisa dihubungi */ }
       if (token !== state.token) return;
@@ -623,34 +614,43 @@
     el.player.dataset.mode = 'paywall';
     el.paywallLogo.innerHTML = '';
     el.paywallLogo.appendChild(logoBox(ch));
-    el.paywallTitle.textContent = `${ch.name} — Premium`;
+    el.paywallTitle.textContent = ch.name;
+    const plan = cheapestPlan();
     el.paywallPlans.hidden = !state.settings.payment.enabled;
+    el.paywallPrice.textContent = plan ? `${formatMoney(plan.price)} / ${durationLabel(plan.durationDays)}` : '';
+  }
+
+  function cheapestPlan() {
+    const plans = state.settings.payment.plans || [];
+    return plans.reduce((best, p) => (!best || p.price < best.price ? p : best), null);
+  }
+
+  function durationLabel(days) {
+    if (days % 365 === 0) return `${days / 365} tahun`;
+    if (days % 30 === 0) return `${days / 30} bulan`;
+    if (days % 7 === 0) return `${days / 7} minggu`;
+    return `${days} hari`;
   }
 
   async function redeem(code, input) {
     code = code.trim().toUpperCase();
     if (!code) return;
-    if (!state.user) {
-      toast('Masuk atau daftar dulu untuk memakai kode akses.');
-      if (!(await showAuth(false))) return;
-    }
     try {
       const res = await postJson('api/access/redeem', { code });
       const data = await res.json().catch(() => ({}));
-      if (res.status === 401) { sessionExpired(); return; }
       if (!res.ok) { toast(data.error || 'Kode akses tidak valid.'); return; }
-      setUser(data.user);
+      setAccess(data.access);
       if (input) input.value = '';
       el.subModal.hidden = true;
       const access = activeAccess();
-      if (access) toast(`Akses premium aktif sampai ${formatDate(access.expiresAt)}.`);
+      if (access) toast(`Langganan aktif sampai ${formatDate(access.expiresAt)}.`);
       if (state.current && isLocked(state.current)) playChannel(state.current, 0);
     } catch {
       toast('Server tidak bisa dihubungi. Coba lagi.');
     }
   }
 
-  // ---------- Akun penonton ----------
+  // ---------- Langganan & pengaturan ----------
 
   function postJson(path, body) {
     return fetch(basePath + path, {
@@ -660,134 +660,13 @@
     });
   }
 
-  function sessionExpired() {
-    toast('Sesi login berakhir. Silakan masuk lagi.');
-    setTimeout(() => location.reload(), 1200);
-  }
-
-  function setUser(user) {
-    state.user = user;
-    renderAccount();
+  function setAccess(access) {
+    state.access = access;
     renderSubscribeButton();
   }
 
-  function renderAccount() {
-    const user = state.user;
-    const auth = state.settings.auth;
-    el.account.hidden = !user;
-    el.loginBtn.hidden = Boolean(user) || !auth;
-    el.accountMenu.hidden = true;
-    if (!user) return;
-    el.accountAvatar.textContent = (user.name.trim()[0] || '?').toUpperCase();
-    el.accountBtn.title = user.name;
-    el.accountName.textContent = user.name;
-    el.accountLogin.textContent = '@' + user.login;
-    const access = activeAccess();
-    el.accountPlan.className = 'account-plan' + (access ? ' on' : '');
-    el.accountPlan.textContent = access
-      ? `Premium ${access.plan || ''} · s/d ${formatDate(access.expiresAt)}`
-      : 'Akun gratis';
-  }
-
-  let authResolve = null;
-
-  function setAuthTab(tab) {
-    const register = tab === 'register';
-    for (const b of el.authTabs.querySelectorAll('button')) b.classList.toggle('on', b.dataset.tab === tab);
-    el.loginForm.hidden = register;
-    el.registerForm.hidden = !register;
-    el.authTitle.textContent = register ? 'Buat akun baru' : 'Masuk untuk mulai menonton';
-    (register ? el.registerForm : el.loginForm).querySelector('input').focus();
-  }
-
-  // Resolve dengan data user setelah berhasil masuk/daftar, atau null bila ditutup.
-  function showAuth(required) {
-    const auth = state.settings.auth || {};
-    el.authTabs.hidden = !auth.allowRegister;
-    el.authClose.hidden = required;
-    el.authSub.textContent = required
-      ? `Nonton live TV nasional, TVRI daerah, dan TV lokal Indonesia di ${state.settings.site.name}.`
-      : 'Masuk ke akun Anda untuk berlangganan dan membuka channel premium.';
-    renderBrand(el.authMark, el.authName);
-    el.auth.hidden = false;
-    document.body.classList.add('auth-open');
-    setAuthTab('login');
-    return new Promise((resolve) => { authResolve = resolve; });
-  }
-
-  function closeAuth(user) {
-    el.auth.hidden = true;
-    document.body.classList.remove('auth-open');
-    for (const f of [el.loginForm, el.registerForm]) { f.reset(); f.querySelector('.auth-error').hidden = true; }
-    if (authResolve) { authResolve(user); authResolve = null; }
-  }
-
-  function formError(form, text) {
-    const p = form.querySelector('.auth-error');
-    p.textContent = text || '';
-    p.hidden = !text;
-  }
-
-  async function submitForm(form, path, onOk) {
-    const data = Object.fromEntries(new FormData(form));
-    const btn = form.querySelector('button[type="submit"]');
-    formError(form, '');
-    btn.disabled = true;
-    try {
-      const res = await postJson(path, data);
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) { formError(form, body.error || 'Terjadi kesalahan. Coba lagi.'); return; }
-      onOk(body);
-    } catch {
-      formError(form, 'Server tidak bisa dihubungi. Periksa koneksi lalu coba lagi.');
-    } finally {
-      btn.disabled = false;
-    }
-  }
-
-  function bindAuthEvents() {
-    el.authTabs.addEventListener('click', (e) => { if (e.target.dataset.tab) setAuthTab(e.target.dataset.tab); });
-    el.loginForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const { login, password } = Object.fromEntries(new FormData(el.loginForm));
-      if (!login.trim() || !password) { formError(el.loginForm, 'Isi username dan password.'); return; }
-      submitForm(el.loginForm, 'api/auth/login', (body) => {
-        setUser(body.user);
-        closeAuth(body.user);
-        toast(`Selamat datang, ${body.user.name}!`);
-      });
-    });
-    el.registerForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const { login, password } = Object.fromEntries(new FormData(el.registerForm));
-      if (login.trim().length < 3) { formError(el.registerForm, 'Username minimal 3 karakter.'); return; }
-      if (password.length < 6) { formError(el.registerForm, 'Password minimal 6 karakter.'); return; }
-      submitForm(el.registerForm, 'api/auth/register', (body) => {
-        setUser(body.user);
-        closeAuth(body.user);
-        toast(`Akun berhasil dibuat. Selamat menonton, ${body.user.name}!`);
-      });
-    });
-    el.authClose.onclick = () => closeAuth(null);
-    el.loginBtn.onclick = () => showAuth(false);
-
-    el.accountBtn.onclick = (e) => {
-      e.stopPropagation();
-      el.accountMenu.hidden = !el.accountMenu.hidden;
-    };
-    el.logoutBtn.onclick = async () => {
-      try { await postJson('api/auth/logout'); } catch { /* tetap muat ulang */ }
-      location.reload();
-    };
-    el.passBtn.onclick = () => {
-      el.accountMenu.hidden = true;
-      el.passForm.reset();
-      formError(el.passForm, '');
-      el.passModal.hidden = false;
-      el.passForm.querySelector('input').focus();
-    };
+  function bindSettingsEvents() {
     el.settingsBtn.onclick = () => {
-      el.accountMenu.hidden = true;
       el.settingsModal.hidden = false;
       el.themeChoice.querySelector('[aria-checked="true"]').focus();
     };
@@ -798,18 +677,6 @@
       if (!b) return;
       store.set('theme', b.dataset.theme);
       applyTheme(b.dataset.theme);
-    });
-    el.passClose.onclick = () => { el.passModal.hidden = true; };
-    el.passModal.addEventListener('click', (e) => { if (e.target === el.passModal) el.passModal.hidden = true; });
-    el.passForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const { current, next } = Object.fromEntries(new FormData(el.passForm));
-      if (!current) { formError(el.passForm, 'Isi password lama.'); return; }
-      if (next.length < 6) { formError(el.passForm, 'Password baru minimal 6 karakter.'); return; }
-      submitForm(el.passForm, 'api/auth/password', () => {
-        el.passModal.hidden = true;
-        toast('Password berhasil diganti.');
-      });
     });
   }
 
@@ -843,20 +710,13 @@
       card.className = 'plan';
       card.innerHTML = `<strong>${escapeHtml(plan.name)}</strong>` +
         `<span class="price">${escapeHtml(formatMoney(plan.price))}</span>` +
-        `<span class="tag">${plan.durationDays} hari</span>` +
+        `<span class="tag">${durationLabel(plan.durationDays)}</span>` +
         `<p>${escapeHtml(plan.description)}</p>`;
-      if (pay.whatsapp) {
-        const a = document.createElement('a');
-        a.className = 'btn';
-        a.target = '_blank';
-        a.rel = 'noopener';
-        const who = state.user ? ` Akun: ${state.user.name} (${state.user.login}).` : '';
-        const msg = `Halo, saya ingin berlangganan paket ${plan.name} (${formatMoney(plan.price)}) di ${site.name}.${who} Berikut bukti pembayarannya:`;
-        a.href = `https://wa.me/${pay.whatsapp}?text=${encodeURIComponent(msg)}`;
-        a.textContent = 'Konfirmasi via WhatsApp';
-        card.appendChild(a);
-      }
       el.plans.appendChild(card);
+    }
+    el.waBtn.hidden = !pay.whatsapp;
+    if (pay.whatsapp) {
+      el.waBtn.href = `https://wa.me/${pay.whatsapp}?text=${encodeURIComponent(`Halo kak saya mau langganan ${site.name}`)}`;
     }
 
     el.payMethods.innerHTML = '';
@@ -926,19 +786,20 @@
 
   function playFrame(url) {
     const frame = document.createElement('iframe');
-    frame.src = url;
-    frame.allow = 'autoplay; fullscreen; encrypted-media; picture-in-picture';
-    frame.allowFullscreen = true;
+    frame.setAttribute('allow', 'autoplay; fullscreen; encrypted-media; picture-in-picture; screen-wake-lock');
+    frame.setAttribute('allowfullscreen', 'true');
+    frame.setAttribute('webkitallowfullscreen', 'true');
+    frame.setAttribute('mozallowfullscreen', 'true');
     frame.referrerPolicy = 'strict-origin-when-cross-origin';
     frame.addEventListener('load', () => setLoading(false), { once: true });
     el.frameHost.appendChild(frame);
+    frame.src = url;
   }
 
   async function playYoutube(channelId, token) {
     let info = null;
     try {
       const res = await fetch(`${basePath}api/youtube-live?channel=${encodeURIComponent(channelId)}`);
-      if (res.status === 401) { sessionExpired(); return; }
       if (res.ok) info = await res.json();
     } catch { /* server.js tidak berjalan (mis. dibuka via file://) */ }
     if (token !== state.token) return;
@@ -947,17 +808,6 @@
       return;
     }
     playFrame(`https://www.youtube.com/embed/${info.videoId}?autoplay=1&playsinline=1&rel=0`);
-  }
-
-  function showExternal(ch, src) {
-    const url = `https://www.vidio.com/live/${src.id}`;
-    el.externalLogo.innerHTML = '';
-    el.externalLogo.appendChild(logoBox(ch));
-    el.externalTitle.textContent = `${ch.name} hanya bisa ditonton di Vidio`;
-    el.externalText.textContent = `Siaran live resmi ${ch.name} dipegang Vidio, dan Vidio tidak mengizinkan siarannya diputar di situs lain. ` +
-      'Klik tombol di bawah untuk langsung menonton live di Vidio (gratis, mungkin perlu login).';
-    el.externalLink.href = url;
-    el.externalBtnText.textContent = `Tonton ${ch.name} live di Vidio`;
   }
 
   function playHls(url, token) {
@@ -1117,7 +967,7 @@
     el.nowName.textContent = ch.name;
     el.ctlTitle.textContent = ch.name;
     el.nowMeta.textContent = `${ch.groups.join(' · ')} — ${sourceLabel(src)}`;
-    el.fsInfoBtn.hidden = src.type === 'vidio';
+    el.fsInfoBtn.hidden = false;
   }
 
   // ---------- Fullscreen ----------
@@ -1138,28 +988,81 @@
     el.player.classList.toggle('pseudo-fs', on);
     document.body.classList.toggle('pseudo-fs-open', on);
     syncFullscreenIcons();
+    animateFullscreen();
+    if (on && PSEUDO_FULLSCREEN) showUpdateHint();
+    else hideUpdateHint();
+  }
+
+  function animateFullscreen() {
+    el.player.classList.remove('fs-anim');
+    void el.player.offsetWidth;
+    el.player.classList.add('fs-anim');
+  }
+
+  // Layar penuh tiruan tidak bisa memutar bilah status & navigasi HP; itu hanya bisa dilakukan APK baru.
+  let updateHintTimer = 0;
+  function showUpdateHint() {
+    try {
+      if (sessionStorage.getItem('tvn.fsHint')) return;
+      sessionStorage.setItem('tvn.fsHint', '1');
+    } catch {}
+    el.fsUpdate.hidden = false;
+    clearTimeout(updateHintTimer);
+    updateHintTimer = setTimeout(hideUpdateHint, 9000);
+  }
+
+  function hideUpdateHint() {
+    clearTimeout(updateHintTimer);
+    el.fsUpdate.hidden = true;
+  }
+
+  function requestFullscreen(node) {
+    if (!node) return Promise.reject();
+    if (node.requestFullscreen) {
+      try {
+        return Promise.resolve(node.requestFullscreen({ navigationUI: 'hide' }));
+      } catch {
+        try { return Promise.resolve(node.requestFullscreen()); } catch { return Promise.reject(); }
+      }
+    }
+    if (node.webkitRequestFullscreen) {
+      node.webkitRequestFullscreen();
+      return Promise.resolve();
+    }
+    return Promise.reject();
+  }
+
+  function lockLandscape() {
+    if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {});
   }
 
   function toggleFullscreen() {
-    if (PSEUDO_FULLSCREEN) {
-      if (isPseudoFullscreen()) history.back();
-      else setPseudoFullscreen(true);
+    if (isPseudoFullscreen()) {
+      history.back();
       return;
     }
-    if (isFullscreen()) {
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
       (document.exitFullscreen || document.webkitExitFullscreen).call(document);
       return;
     }
-    const p = el.player;
-    if (p.requestFullscreen) {
-      p.requestFullscreen({ navigationUI: 'hide' })
-        .then(() => { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {}); })
-        .catch(() => {});
-    } else if (p.webkitRequestFullscreen) {
-      p.webkitRequestFullscreen();
-    } else if (el.video.webkitEnterFullscreen) {
-      el.video.webkitEnterFullscreen();
+    if (PSEUDO_FULLSCREEN) {
+      setPseudoFullscreen(true);
+      return;
     }
+    const player = el.player;
+    const frame = player.dataset.mode === 'frame' ? el.frameHost.querySelector('iframe') : null;
+    // Pemutar yang berisi halaman Vidio sering ditolak browser bila layar penuh diminta
+    // pada kotak induknya. Coba kotaknya dulu, lalu iframe-nya, lalu layar penuh tiruan.
+    requestFullscreen(player).then(lockLandscape).catch(() => {
+      if (!frame) return Promise.reject();
+      return requestFullscreen(frame).then(lockLandscape);
+    }).catch(() => {
+      if (player.dataset.mode === 'hls' && el.video.webkitEnterFullscreen) {
+        el.video.webkitEnterFullscreen();
+        return;
+      }
+      setPseudoFullscreen(true);
+    });
   }
 
   function syncFullscreenIcons() {
@@ -1229,8 +1132,8 @@
 
     function blocked(target) {
       if (!target || !target.closest) return true;
-      if (!el.auth.hidden || !el.drawer.hidden || !el.subModal.hidden || !el.passModal.hidden || isPseudoFullscreen()) return true;
-      return !!target.closest('input, textarea, select, video, .controls, .volume, .quality-menu, .account-menu');
+      if (!el.drawer.hidden || !el.subModal.hidden || !el.settingsModal.hidden || isPseudoFullscreen()) return true;
+      return !!target.closest('input, textarea, select, video, .controls, .volume, .quality-menu');
     }
 
     function scrolledAway(target) {
@@ -1328,7 +1231,6 @@
     };
     document.addEventListener('click', (e) => {
       if (!el.qualityMenu.hidden && !el.qualityMenu.contains(e.target)) el.qualityMenu.hidden = true;
-      if (!el.accountMenu.hidden && !el.accountMenu.contains(e.target)) el.accountMenu.hidden = true;
     });
     el.qualitySelect.onchange = () => setQuality(Number(el.qualitySelect.value));
     el.pipBtn.hidden = !document.pictureInPictureEnabled;
@@ -1340,8 +1242,13 @@
     el.fsBtn.onclick = toggleFullscreen;
     el.fsCorner.onclick = toggleFullscreen;
     el.fsInfoBtn.onclick = toggleFullscreen;
-    document.addEventListener('fullscreenchange', syncFullscreenIcons);
-    document.addEventListener('webkitfullscreenchange', syncFullscreenIcons);
+    for (const type of ['fullscreenchange', 'webkitfullscreenchange']) {
+      document.addEventListener(type, () => { syncFullscreenIcons(); animateFullscreen(); });
+    }
+    el.player.addEventListener('animationend', (e) => {
+      if (e.animationName.startsWith('fs-')) el.player.classList.remove('fs-anim');
+    });
+    el.fsUpdateClose.onclick = hideUpdateHint;
 
     el.retryBtn.onclick = () => state.current && playChannel(state.current, state.sourceIndex);
     el.nextSourceBtn.onclick = () => {
@@ -1397,11 +1304,9 @@
         if (isPseudoFullscreen()) { history.back(); return; }
         if (!el.drawer.hidden) { closeDrawer(); return; }
         if (!el.subModal.hidden) { el.subModal.hidden = true; return; }
-        if (!el.passModal.hidden) { el.passModal.hidden = true; return; }
         if (!el.settingsModal.hidden) { el.settingsModal.hidden = true; return; }
-        if (!el.accountMenu.hidden) { el.accountMenu.hidden = true; return; }
       }
-      if (!el.auth.hidden || !el.drawer.hidden) return;
+      if (!el.drawer.hidden) return;
       if (e.target.matches('input, select, textarea') || e.ctrlKey || e.metaKey || e.altKey) return;
       switch (e.key) {
         case 'f': case 'F': e.preventDefault(); toggleFullscreen(); break;
@@ -1467,59 +1372,19 @@
     el.footer.textContent = site.footerText;
     if (site.defaultCategory) state.category = site.defaultCategory;
     renderSubscribeButton();
-    renderAccount();
   }
 
   function applyTheme(theme) {
     const light = theme === 'light';
     document.body.classList.toggle('light', light);
-    document.querySelector('meta[name="theme-color"]').content = light ? '#ffffff' : '#06121f';
+    const barColor = light ? '#ffffff' : '#06121f';
+    document.querySelector('meta[name="theme-color"]').content = barColor;
+    if (window.TekdroidNative) window.TekdroidNative.setTheme(barColor, light);
     for (const b of el.themeChoice.querySelectorAll('[data-theme]')) {
       const on = b.dataset.theme === (light ? 'light' : 'dark');
       b.classList.toggle('on', on);
       b.setAttribute('aria-checked', String(on));
     }
-  }
-
-  async function measurePing() {
-    if (document.hidden) return;
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), PING_TIMEOUT_MS);
-    const start = performance.now();
-    let ms = null;
-    try {
-      const res = await fetch(`${basePath}api/ping`, { cache: 'no-store', signal: ctrl.signal });
-      if (res.ok) ms = Math.round(performance.now() - start);
-    } catch { /* offline atau timeout */ }
-    clearTimeout(timer);
-    const level = ms === null ? 'off' : ms < 100 ? 'good' : ms < 300 ? 'fair' : 'bad';
-    el.ping.dataset.level = level;
-    el.pingValue.textContent = ms === null ? 'Offline' : `${ms} ms`;
-    el.ping.title = ms === null ? 'Server tidak merespons' : `Ping ke server: ${ms} ms`;
-  }
-
-  function startPing() {
-    el.ping.hidden = false;
-    measurePing();
-    setInterval(measurePing, PING_EVERY_MS);
-    document.addEventListener('visibilitychange', measurePing);
-    addEventListener('online', measurePing);
-    addEventListener('offline', measurePing);
-  }
-
-  function startClock() {
-    const time = new Intl.DateTimeFormat('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false });
-    const date = new Intl.DateTimeFormat('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-    const tick = () => {
-      const now = new Date();
-      const text = time.format(now).replace('.', ':');
-      if (el.clock.textContent === text) return;
-      el.clock.textContent = text;
-      el.clock.dateTime = now.toISOString();
-      el.clock.title = date.format(now);
-    };
-    tick();
-    setInterval(tick, 1000);
   }
 
   // Di APK (Capacitor) yang ditampilkan versi aplikasinya, di web versi server.
@@ -1546,22 +1411,16 @@
     // Terapkan pilihan tema pengunjung sebelum menunggu server agar halaman tidak berkedip.
     const savedTheme = store.get('theme', null);
     if (savedTheme) applyTheme(savedTheme);
-    bindAuthEvents();
-    let config = await fetchConfig();
+    bindSettingsEvents();
+    const config = await fetchConfig();
     finishSplash(config);
-    if (config && config.locked) {
-      state.settings = { ...FALLBACK_CONFIG, ...config };
-      applyBaseLook();
-      document.title = `Masuk — ${config.site.name}`;
-      await showAuth(true);
-      config = await fetchConfig();
-    }
     const channels = config && config.channels ? config.channels : window.NATIONAL_CHANNELS;
-    if (config && !config.locked) state.settings = config;
-    state.user = config ? config.user : null;
+    if (config) state.settings = config;
+    state.access = config ? config.access : null;
     state.nationalTvgIds = new Set([...window.NATIONAL_CHANNELS, ...channels].map((c) => c.tvgId).filter(Boolean));
     applySettings();
-    channels.forEach((c) => addChannel({ ...c, sources: [...(c.sources || [])], tags: [], res: null }));
+    // Tanpa server tidak ada langganan, jadi tanda premium dari daftar bawaan diabaikan.
+    channels.forEach((c) => addChannel({ ...c, premium: Boolean(config && c.premium), sources: [...(c.sources || [])], tags: [], res: null }));
     const awaitsPlaylist = state.settings.streaming.playlistEnabled;
     if (!awaitsPlaylist && !state.channels.some((c) => c.groups.includes(state.category))) state.category = 'Semua';
     el.exampleUrl.textContent = useHistory ? basePath + 'indosiar' : '#/indosiar';
@@ -1574,8 +1433,6 @@
     autoStart();
     loadPlaylist();
     if (config) refreshLive();
-    startPing();
-    startClock();
   }
 
   init();
