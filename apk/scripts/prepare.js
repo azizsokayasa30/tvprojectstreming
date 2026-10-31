@@ -28,7 +28,7 @@ const config = {
   backgroundColor: '#0a0e17',
   server: {
     androidScheme: 'https',
-    allowNavigation: ['*.trycloudflare.com', ...(lanUrl ? [new URL(lanUrl).host] : [])],
+    allowNavigation: ['*.trycloudflare.com', ...(lanUrl ? [new URL(lanUrl).hostname] : [])],
     errorPath: 'error.html',
   },
   android: {
