@@ -171,6 +171,16 @@ svg { width: 20px; height: 20px; flex: none; }
 }
 .player video { object-fit: contain; }
 .player:fullscreen, .player:-webkit-full-screen { border-radius: 0; aspect-ratio: auto; width: 100vw; height: 100vh; }
+/* Layar penuh tiruan untuk APK lama yang WebView-nya menolak layar penuh: player menutupi layar dan diputar ke landscape. */
+body.pseudo-fs-open { overflow: hidden; }
+body .stage .player.pseudo-fs {
+  position: fixed; top: 0; left: 0; z-index: 90;
+  width: 100vw; height: 100vh; aspect-ratio: auto;
+  border-radius: 0; box-shadow: none;
+}
+@media (orientation: portrait) {
+  body .stage .player.pseudo-fs { left: 100vw; width: 100vh; height: 100vw; transform: rotate(90deg); transform-origin: top left; }
+}
 
 .player:not([data-mode="hls"]) video,
 .player:not([data-mode="hls"]) .controls,

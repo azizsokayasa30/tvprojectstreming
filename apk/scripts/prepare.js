@@ -26,6 +26,8 @@ const config = {
   appName: 'TEKDROID TV',
   webDir: 'build/www',
   backgroundColor: '#0a0e17',
+  // Tanda bagi web bahwa APK ini menangani layar penuh + landscape secara native (lihat native/).
+  appendUserAgent: 'TekdroidFullscreen',
   server: {
     androidScheme: 'https',
     allowNavigation: ['*.trycloudflare.com', ...(lanUrl ? [new URL(lanUrl).hostname] : [])],

@@ -1101,9 +1101,30 @@
 
   // ---------- Fullscreen ----------
 
-  function isFullscreen() { return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+  // WebView APK lama langsung membatalkan layar penuh; APK baru menandai user agent-nya dengan "TekdroidFullscreen".
+  const PSEUDO_FULLSCREEN = /; wv\)/.test(navigator.userAgent) && !navigator.userAgent.includes('TekdroidFullscreen');
+
+  const isPseudoFullscreen = () => el.player.classList.contains('pseudo-fs');
+
+  function isFullscreen() {
+    return !!(document.fullscreenElement || document.webkitFullscreenElement) || isPseudoFullscreen();
+  }
+
+  // Masuk menambah entri riwayat, jadi tombol Kembali Android menutup layar penuh, bukan pindah halaman.
+  function setPseudoFullscreen(on) {
+    if (on === isPseudoFullscreen()) return;
+    if (on) history.pushState({ pseudoFs: true }, '', location.href);
+    el.player.classList.toggle('pseudo-fs', on);
+    document.body.classList.toggle('pseudo-fs-open', on);
+    syncFullscreenIcons();
+  }
 
   function toggleFullscreen() {
+    if (PSEUDO_FULLSCREEN) {
+      if (isPseudoFullscreen()) history.back();
+      else setPseudoFullscreen(true);
+      return;
+    }
     if (isFullscreen()) {
       (document.exitFullscreen || document.webkitExitFullscreen).call(document);
       return;
@@ -1187,7 +1208,7 @@
 
     function blocked(target) {
       if (!target || !target.closest) return true;
-      if (!el.auth.hidden || !el.drawer.hidden || !el.subModal.hidden || !el.passModal.hidden) return true;
+      if (!el.auth.hidden || !el.drawer.hidden || !el.subModal.hidden || !el.passModal.hidden || isPseudoFullscreen()) return true;
       return !!target.closest('input, textarea, select, video, .controls, .volume, .quality-menu, .account-menu');
     }
 
@@ -1333,7 +1354,10 @@
       if (useHistory) { history.pushState(null, '', basePath); route(); } else { location.hash = ''; route(); }
     };
 
-    window.addEventListener('popstate', route);
+    window.addEventListener('popstate', () => {
+      if (isPseudoFullscreen()) setPseudoFullscreen(false);
+      else route();
+    });
     window.addEventListener('hashchange', route);
 
     el.paywallForm.addEventListener('submit', (e) => { e.preventDefault(); redeem(el.paywallCode.value, el.paywallCode); });
@@ -1349,6 +1373,7 @@
 
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
+        if (isPseudoFullscreen()) { history.back(); return; }
         if (!el.drawer.hidden) { closeDrawer(); return; }
         if (!el.subModal.hidden) { el.subModal.hidden = true; return; }
         if (!el.passModal.hidden) { el.passModal.hidden = true; return; }

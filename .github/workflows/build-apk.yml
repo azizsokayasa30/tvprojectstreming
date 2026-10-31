@@ -50,6 +50,7 @@ jobs:
         run: |
           node scripts/prepare.js "$SERVER_URL"
           npx cap add android
+          cp native/*.java android/app/src/main/java/id/tekdroid/tv/
           npx capacitor-assets generate --android
           npx cap sync android
 
