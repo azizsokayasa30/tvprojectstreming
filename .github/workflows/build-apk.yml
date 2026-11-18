@@ -30,7 +30,7 @@ jobs:
         working-directory: apk
     env:
       SERVER_URL: ${{ github.event.inputs.server_url || vars.APK_SERVER_URL || 'http://192.168.2.100:8080' }}
-      APK_DEBUG: ${{ github.event.inputs.debug == true && '1' || '0' }}
+      APK_DEBUG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.debug == 'true' && '1' || '0' }}
     steps:
       - uses: actions/checkout@v5
 
