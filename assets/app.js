@@ -152,7 +152,12 @@
 
   const MODE_BY_TYPE = { hls: 'hls', iframe: 'frame', youtube: 'frame', vidio: 'frame', web: 'external' };
 
-  const IS_PHONE = /Android|iPhone|iPod|Mobile/i.test(navigator.userAgent);
+  // Mode simulasi dari /debug (?sim=phone|apk|apk-old) supaya uji di PC tanpa unduh APK ulang.
+  const SIM = (() => {
+    try { return new URLSearchParams(location.search).get('sim'); } catch { return null; }
+  })();
+  const IS_PHONE = SIM === 'phone' || SIM === 'apk' || SIM === 'apk-old'
+    || /Android|iPhone|iPod|Mobile/i.test(navigator.userAgent);
 
   // Sumber "khusus HP" didahulukan di HP dan tidak dipakai di komputer. RCTI+ tidak bisa diputar di dalam
   // pemutar di HP (lihat RCTI_MOBILE), jadi di HP sumber lain yang bisa langsung diputar dicoba lebih dulu.
@@ -455,6 +460,7 @@
 
   const useHistory = location.protocol.startsWith('http');
   const basePath = new URL('../', document.currentScript.src).pathname;
+  const keepSearch = () => location.search || '';
 
   function currentSlug() {
     if (location.hash.startsWith('#/')) return decodeURIComponent(location.hash.slice(2)).toLowerCase();
@@ -471,7 +477,7 @@
 
   function navigate(slug) {
     if (useHistory) {
-      if (currentSlug() !== slug || location.hash) history.pushState(null, '', basePath + slug);
+      if (currentSlug() !== slug || location.hash) history.pushState(null, '', basePath + slug + keepSearch());
       route();
     } else {
       location.hash = '/' + slug;
@@ -496,7 +502,7 @@
       || state.channels.find((c) => !c.premium && c.sources[0] && c.sources[0].type === 'hls')
       || state.channels.find(canAutoplay);
     if (!ch) return;
-    if (useHistory) history.replaceState(null, '', basePath + ch.slug);
+    if (useHistory) history.replaceState(null, '', basePath + ch.slug + keepSearch());
     else location.replace('#/' + ch.slug);
     route();
   }
@@ -1051,8 +1057,9 @@
   // ---------- Fullscreen ----------
 
   // WebView APK lama langsung membatalkan layar penuh; APK baru menandai user agent-nya dengan "TekdroidFullscreen".
-  const IN_APP = /; wv\)/.test(navigator.userAgent);
-  const PSEUDO_FULLSCREEN = IN_APP && !navigator.userAgent.includes('TekdroidFullscreen');
+  const IN_APP = SIM === 'apk' || SIM === 'apk-old' || /; wv\)/.test(navigator.userAgent);
+  const PSEUDO_FULLSCREEN = SIM === 'apk-old'
+    || (IN_APP && SIM !== 'apk' && !navigator.userAgent.includes('TekdroidFullscreen'));
 
   const isPseudoFullscreen = () => el.player.classList.contains('pseudo-fs');
 
@@ -1360,7 +1367,7 @@
 
     el.brandLink.onclick = (e) => {
       e.preventDefault();
-      if (useHistory) { history.pushState(null, '', basePath); route(); } else { location.hash = ''; route(); }
+      if (useHistory) { history.pushState(null, '', basePath + keepSearch()); route(); } else { location.hash = ''; route(); }
     };
 
     window.addEventListener('popstate', () => {

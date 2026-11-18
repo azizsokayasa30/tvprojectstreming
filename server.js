@@ -34,6 +34,7 @@ const TYPES = {
   '.png': 'image/png',
   '.ico': 'image/x-icon',
   '.json': 'application/json',
+  '.apk': 'application/vnd.android.package-archive',
 };
 
 // ---------- Penyimpanan ----------
@@ -558,6 +559,15 @@ async function handleApi(req, res, url) {
     return res.end();
   }
 
+  if (p === '/api/lan' && req.method === 'GET') {
+    const lan = Object.values(require('os').networkInterfaces()).flat()
+      .filter((n) => n && n.family === 'IPv4' && !n.internal)
+      .map((n) => `http://${n.address}:${PORT}`);
+    let apkBytes = 0;
+    try { apkBytes = fs.statSync(path.join(ROOT, 'debug', 'TEKDROID-TV.apk')).size; } catch { /* belum diunduh */ }
+    return sendJson(res, 200, { port: PORT, lan, apkBytes });
+  }
+
   // --- Publik ---
   const device = deviceKey(req);
 
@@ -705,9 +715,18 @@ async function handleApi(req, res, url) {
 
 function resolveStatic(urlPath) {
   if (urlPath === '/admin' || urlPath === '/admin/') return 'admin/index.html';
-  if (/^\/(assets|admin)\/[\w.-]+$/.test(urlPath)) return urlPath.slice(1);
+  if (urlPath === '/debug' || urlPath === '/debug/') return 'debug/index.html';
+  if (/^\/(assets|admin|debug)\/[\w.-]+$/.test(urlPath)) return urlPath.slice(1);
   if (urlPath === '/index.html' || !path.extname(urlPath)) return 'index.html';
   return null;
+}
+
+function apkDownloadHeaders(fileName) {
+  return {
+    'Content-Type': TYPES['.apk'],
+    'Content-Disposition': `attachment; filename="${fileName}"`,
+    'Cache-Control': 'no-cache',
+  };
 }
 
 // ---------- Mode pengembangan: halaman memuat ulang sendiri saat file diedit ----------
@@ -727,7 +746,7 @@ if (DEV) {
     clearTimeout(timer);
     timer = setTimeout(() => { for (const c of reloadClients) c.write('data: reload\n\n'); }, 150);
   };
-  for (const target of ['index.html', 'assets', 'admin']) fs.watch(path.join(ROOT, target), notify);
+  for (const target of ['index.html', 'assets', 'admin', 'debug']) fs.watch(path.join(ROOT, target), notify);
   setInterval(() => { for (const c of reloadClients) c.write(': ping\n\n'); }, 25000).unref();
 }
 
@@ -757,6 +776,11 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('Tidak ditemukan');
       return;
     }
+    if (path.extname(file) === '.apk') {
+      res.writeHead(200, apkDownloadHeaders(path.basename(file)));
+      res.end(data);
+      return;
+    }
     res.writeHead(200, {
       'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream',
       'Cache-Control': 'no-cache',
@@ -769,6 +793,7 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, () => {
   console.log(`TEKDROID TV berjalan di http://localhost:${PORT}`);
   console.log(`Portal admin: http://localhost:${PORT}/admin`);
+  console.log(`Aplikasi debug: http://localhost:${PORT}/debug`);
   const lan = Object.values(require('os').networkInterfaces()).flat()
     .filter((n) => n && n.family === 'IPv4' && !n.internal)
     .map((n) => `http://${n.address}:${PORT}`);

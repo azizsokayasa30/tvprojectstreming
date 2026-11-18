@@ -5,31 +5,73 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>TEKDROID TV</title>
   <style>
-    html, body { margin: 0; height: 100%; }
+    html, body { margin: 0; min-height: 100%; }
     body {
       display: grid; place-items: center; padding: 24px; box-sizing: border-box; text-align: center;
       font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: #e7ecf5;
       background: radial-gradient(600px 400px at 0% 0%, rgba(14, 165, 233, .28), transparent 65%),
         radial-gradient(600px 400px at 100% 100%, rgba(37, 99, 235, .28), transparent 65%), #06121f;
     }
+    main { width: min(100%, 420px); }
     h1 { font-size: 20px; margin: 16px 0 8px; }
-    p { color: #8d98b3; margin: 0 0 20px; max-width: 420px; }
-    button {
+    p { color: #8d98b3; margin: 0 0 16px; }
+    .badge {
+      display: inline-block; margin-bottom: 8px; padding: 4px 10px; border-radius: 999px;
+      background: rgba(14, 165, 233, .16); color: #7dd3fc; font-size: 11px; font-weight: 700;
+      letter-spacing: .06em; text-transform: uppercase;
+    }
+    button, .btn {
       border: 0; border-radius: 12px; padding: 12px 22px; font: inherit; font-weight: 700; color: #fff;
       background: linear-gradient(135deg, #0ea5e9, #1d4ed8); box-shadow: 0 10px 24px -10px rgba(14, 165, 233, .8);
+      cursor: pointer;
     }
-    .spin { width: 28px; height: 28px; margin: 4px auto 0; border-radius: 50%; border: 3px solid rgba(255, 255, 255, .15); border-top-color: #7dd3fc; animation: spin .8s linear infinite; }
+    button.ghost, .btn.ghost {
+      background: rgba(255, 255, 255, .06); box-shadow: none; color: #e7ecf5;
+      border: 1px solid rgba(255, 255, 255, .12);
+    }
+    .spin {
+      width: 28px; height: 28px; margin: 4px auto 0; border-radius: 50%;
+      border: 3px solid rgba(255, 255, 255, .15); border-top-color: #7dd3fc;
+      animation: spin .8s linear infinite;
+    }
     @keyframes spin { to { transform: rotate(360deg); } }
+    .form {
+      display: grid; gap: 10px; text-align: left; margin-top: 8px;
+      padding: 14px; border-radius: 14px; background: rgba(255, 255, 255, .04);
+      border: 1px solid rgba(255, 255, 255, .08);
+    }
+    .form label { font-size: 12px; color: #8d98b3; }
+    .form input {
+      width: 100%; box-sizing: border-box; border-radius: 10px; border: 1px solid rgba(255, 255, 255, .12);
+      background: #0b1524; color: #e7ecf5; padding: 11px 12px; font: inherit;
+    }
+    .form input:focus { outline: none; border-color: rgba(14, 165, 233, .55); }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 14px; }
+    .hint { font-size: 12px; color: #6b778f; margin: 0; }
     [hidden] { display: none !important; }
   </style>
 </head>
 <body>
   <main>
+    <div class="badge" id="dbgBadge" hidden>Debug</div>
     <svg width="72" height="72" viewBox="0 0 32 32"><defs><linearGradient id="g" x1="5" y1="4" x2="27" y2="28" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#7dd3fc"/><stop offset="0.45" stop-color="#0ea5e9"/><stop offset="1" stop-color="#1d4ed8"/></linearGradient></defs><rect x="2.5" y="6" width="27" height="20" rx="6.2" fill="url(#g)"/><path d="M13.2 12.15v7.7l6.7-3.85z" fill="#fff"/><circle cx="24.15" cy="10.55" r="1.25" fill="#fff"/></svg>
     <h1 id="title">Menghubungkan…</h1>
     <p id="text">Mencari server TEKDROID TV.</p>
     <div class="spin" id="spin"></div>
-    <button type="button" id="retry" hidden>Coba lagi</button>
+    <div class="actions" id="actions" hidden>
+      <button type="button" id="retry">Coba lagi</button>
+      <button type="button" class="ghost" id="manualBtn">Isi alamat server</button>
+    </div>
+    <form class="form" id="manual" hidden>
+      <label for="serverInput">Alamat server (Wi-Fi / tunnel)</label>
+      <input id="serverInput" type="url" inputmode="url" autocomplete="off" spellcheck="false"
+        placeholder="http://192.168.2.100:8080" required>
+      <p class="hint">HP dan komputer harus satu Wi-Fi. Contoh: <code>http://192.168.2.100:8080</code></p>
+      <div class="actions" style="margin:0">
+        <button type="submit">Hubungkan</button>
+        <button type="button" class="ghost" id="cancelManual">Batal</button>
+      </div>
+    </form>
   </main>
   <script>
     // Alamat publik server (Cloudflare Tunnel) berganti-ganti; yang terbaru diumumkan di GitHub oleh `npm run online`.
@@ -38,10 +80,21 @@
       'https://api.github.com/repos/__URL_REPO__/contents/server-url.json?ref=server-url',
     ];
     var LAN_URL = '__SERVER_URL__';
+    var IS_DEBUG = '__DEBUG__' === '1';
     var CACHE_KEY = 'tekdroid.serverUrl';
+
+    if (IS_DEBUG) document.getElementById('dbgBadge').hidden = false;
 
     function withTimeout(promise, ms) {
       return Promise.race([promise, new Promise(function (_, reject) { setTimeout(function () { reject(new Error('timeout')); }, ms); })]);
+    }
+
+    function normalizeUrl(raw) {
+      var u = String(raw || '').trim().replace(/\/+$/, '');
+      if (!u) throw new Error('kosong');
+      if (!/^https?:\/\//i.test(u)) u = 'http://' + u;
+      if (!/^https?:\/\/[^\s/]+(:\d+)?$/i.test(u)) throw new Error('alamat tidak valid');
+      return u.replace(/\/+$/, '');
     }
 
     function lookup(src) {
@@ -63,27 +116,85 @@
       }, Promise.reject());
     }
 
+    function showManual(pref) {
+      document.getElementById('spin').hidden = true;
+      document.getElementById('actions').hidden = true;
+      document.getElementById('manual').hidden = false;
+      var input = document.getElementById('serverInput');
+      input.value = pref || localStorage.getItem(CACHE_KEY) || (LAN_URL.indexOf('http') === 0 ? LAN_URL : 'http://192.168.2.100:8080');
+      input.focus();
+      input.select();
+    }
+
+    function hideManual() {
+      document.getElementById('manual').hidden = true;
+    }
+
+    function fail() {
+      document.getElementById('title').textContent = 'Server sedang tidak aktif';
+      document.getElementById('text').textContent = IS_DEBUG
+        ? 'Jalankan server di PC (Debug App.cmd atau TEKDROID TV Online), pastikan satu Wi-Fi, lalu isi alamat di bawah.'
+        : 'Komputer server TEKDROID TV mungkin mati atau belum menjalankan "TEKDROID TV Online". Bisa juga isi alamat Wi-Fi manual.';
+      document.getElementById('spin').hidden = true;
+      document.getElementById('actions').hidden = false;
+      if (IS_DEBUG) showManual();
+    }
+
+    function go(url) {
+      localStorage.setItem(CACHE_KEY, url);
+      location.replace(url);
+    }
+
     function connect() {
+      hideManual();
       document.getElementById('title').textContent = 'Menghubungkan…';
       document.getElementById('text').textContent = 'Mencari server TEKDROID TV.';
       document.getElementById('spin').hidden = false;
-      document.getElementById('retry').hidden = true;
+      document.getElementById('actions').hidden = true;
+
       var cached = localStorage.getItem(CACHE_KEY);
-      var candidates = LOOKUPS.map(function (src) { return function () { return lookup(src); }; });
-      if (cached) candidates.push(function () { return Promise.resolve(cached); });
-      if (/^https?:\/\//.test(LAN_URL)) candidates.push(function () { return Promise.resolve(LAN_URL); });
-      firstAlive(candidates).then(function (url) {
-        localStorage.setItem(CACHE_KEY, url);
-        location.replace(url);
-      }, function () {
-        document.getElementById('title').textContent = 'Server sedang tidak aktif';
-        document.getElementById('text').textContent = 'Komputer server TEKDROID TV mungkin mati atau belum menjalankan "TEKDROID TV Online". Coba lagi sebentar lagi.';
-        document.getElementById('spin').hidden = true;
-        document.getElementById('retry').hidden = false;
-      });
+      var candidates = [];
+      // Debug: utamakan cache & LAN supaya uji lokal cepat tanpa tunggu GitHub.
+      if (IS_DEBUG) {
+        if (cached) candidates.push(function () { return Promise.resolve(cached); });
+        if (/^https?:\/\//.test(LAN_URL)) candidates.push(function () { return Promise.resolve(LAN_URL); });
+        LOOKUPS.forEach(function (src) { candidates.push(function () { return lookup(src); }); });
+      } else {
+        LOOKUPS.forEach(function (src) { candidates.push(function () { return lookup(src); }); });
+        if (cached) candidates.push(function () { return Promise.resolve(cached); });
+        if (/^https?:\/\//.test(LAN_URL)) candidates.push(function () { return Promise.resolve(LAN_URL); });
+      }
+
+      firstAlive(candidates).then(go, fail);
     }
 
     document.getElementById('retry').onclick = connect;
+    document.getElementById('manualBtn').onclick = function () { showManual(); };
+    document.getElementById('cancelManual').onclick = function () {
+      hideManual();
+      document.getElementById('actions').hidden = false;
+    };
+    document.getElementById('manual').onsubmit = function (e) {
+      e.preventDefault();
+      var input = document.getElementById('serverInput');
+      try {
+        var url = normalizeUrl(input.value);
+      } catch (err) {
+        document.getElementById('text').textContent = 'Alamat tidak valid. Contoh: http://192.168.2.100:8080';
+        return;
+      }
+      document.getElementById('title').textContent = 'Menghubungkan…';
+      document.getElementById('text').textContent = 'Mencoba ' + url;
+      document.getElementById('spin').hidden = false;
+      hideManual();
+      alive(url).then(go, function () {
+        document.getElementById('title').textContent = 'Tidak bisa terhubung';
+        document.getElementById('text').textContent = 'Gagal menghubungi ' + url + '. Cek server di PC dan Wi-Fi HP.';
+        document.getElementById('spin').hidden = true;
+        showManual(url);
+      });
+    };
+
     connect();
   </script>
 </body>

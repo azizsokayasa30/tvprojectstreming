@@ -22,6 +22,16 @@ public class FrameLoginClient extends BridgeWebViewClient {
         super(bridge);
     }
 
+    // Form "Isi alamat server" boleh mengarah ke IP Wi-Fi mana pun; daftar allowNavigation di config
+    // tidak bisa mencakup semua IP LAN, jadi host privat diizinkan di sini.
+    @Override
+    public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+        if (isLanServer(request.getUrl())) {
+            return false;
+        }
+        return super.shouldOverrideUrlLoading(view, request);
+    }
+
     @Override
     public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
         if (!request.isForMainFrame() && isVidioLogin(request)) {
@@ -68,6 +78,27 @@ public class FrameLoginClient extends BridgeWebViewClient {
     private static boolean isVidio(Uri uri) {
         String host = uri.getHost();
         return host != null && (host.equals("vidio.com") || host.endsWith(".vidio.com"));
+    }
+
+    private static boolean isLanServer(Uri uri) {
+        String scheme = uri.getScheme();
+        if (scheme == null || (!scheme.equals("http") && !scheme.equals("https"))) {
+            return false;
+        }
+        String host = uri.getHost();
+        if (host == null) {
+            return false;
+        }
+        if (host.equalsIgnoreCase("localhost") || host.equals("127.0.0.1") || host.endsWith(".local")) {
+            return true;
+        }
+        if (host.matches("^10\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$")) {
+            return true;
+        }
+        if (host.matches("^192\\.168\\.\\d{1,3}\\.\\d{1,3}$")) {
+            return true;
+        }
+        return host.matches("^172\\.(1[6-9]|2\\d|3[0-1])\\.\\d{1,3}\\.\\d{1,3}$");
     }
 
     // Hanya pembukaan halaman login/daftar di iframe; pemutar Vidio juga memanggil API di bawah /users/

@@ -1,5 +1,5 @@
 // Menyiapkan proyek Capacitor sebelum build:
-//   node scripts/prepare.js [alamat-server-wifi]
+//   node scripts/prepare.js [alamat-server-wifi] [--debug]
 // - menulis capacitor.config.json
 // - menyalin www/ ke build/www/ dengan repo pengumuman alamat & alamat Wi-Fi cadangan terisi
 // - membuat gambar ikon & splash di assets/ untuk @capacitor/assets
@@ -9,10 +9,12 @@ const path = require('path');
 const sharp = require('sharp');
 
 const ROOT = path.join(__dirname, '..');
-const lanUrl = (process.argv[2] || process.env.SERVER_URL || '').trim().replace(/\/+$/, '');
+const args = process.argv.slice(2);
+const isDebug = args.includes('--debug') || process.env.APK_DEBUG === '1';
+const lanUrl = (args.find((a) => !a.startsWith('--')) || process.env.SERVER_URL || '').trim().replace(/\/+$/, '');
 const urlRepo = (process.env.URL_REPO || process.env.GITHUB_REPOSITORY || 'azizsokayasa30/tvprojectstreming').trim();
 
-if (lanUrl && !/^https?:\/\/[^\s/]+$/i.test(lanUrl)) {
+if (lanUrl && !/^https?:\/\/[^\s/]+(:\d+)?$/i.test(lanUrl)) {
   console.error('Alamat server Wi-Fi tidak valid. Contoh: node scripts/prepare.js http://192.168.2.101:8080');
   process.exit(1);
 }
@@ -21,18 +23,27 @@ if (!/^[\w.-]+\/[\w.-]+$/.test(urlRepo)) {
   process.exit(1);
 }
 
+const lanHost = lanUrl ? new URL(lanUrl).hostname : '';
+// IP LAN lain diizinkan di native (FrameLoginClient) agar form alamat manual tidak perlu rebuild.
+const allowNavigation = [
+  '*.trycloudflare.com', 'rctiplus.com', '*.rctiplus.com', 'vidio.com', '*.vidio.com',
+  'localhost', '127.0.0.1',
+  ...(lanHost ? [lanHost] : []),
+];
+
 const config = {
-  appId: 'id.tekdroid.tv',
-  appName: 'TEKDROID TV',
+  appId: isDebug ? 'id.tekdroid.tv.debug' : 'id.tekdroid.tv',
+  appName: isDebug ? 'TEKDROID TV Debug' : 'TEKDROID TV',
   webDir: 'build/www',
   backgroundColor: '#06121f',
   // Tanda bagi web bahwa APK ini menangani layar penuh + landscape secara native (lihat native/).
   appendUserAgent: 'TekdroidFullscreen',
   server: {
     androidScheme: 'https',
+    cleartext: true,
     // RCTI+ di HP hanya bisa diputar sebagai halaman utama (cookie-nya ditolak di iframe), jadi dibuka di dalam aplikasi.
     // Login Vidio (lihat native/FrameLoginClient.java) juga harus tetap di dalam aplikasi.
-    allowNavigation: ['*.trycloudflare.com', 'rctiplus.com', '*.rctiplus.com', 'vidio.com', '*.vidio.com', ...(lanUrl ? [new URL(lanUrl).hostname] : [])],
+    allowNavigation,
     errorPath: 'error.html',
   },
   android: {
@@ -47,7 +58,13 @@ fs.rmSync(path.join(ROOT, 'build'), { recursive: true, force: true });
 fs.mkdirSync(outDir, { recursive: true });
 for (const file of fs.readdirSync(path.join(ROOT, 'www'))) {
   const html = fs.readFileSync(path.join(ROOT, 'www', file), 'utf8');
-  fs.writeFileSync(path.join(outDir, file), html.replaceAll('__SERVER_URL__', lanUrl).replaceAll('__URL_REPO__', urlRepo));
+  fs.writeFileSync(
+    path.join(outDir, file),
+    html
+      .replaceAll('__SERVER_URL__', lanUrl)
+      .replaceAll('__URL_REPO__', urlRepo)
+      .replaceAll('__DEBUG__', isDebug ? '1' : '0'),
+  );
 }
 
 async function makeAssets() {
@@ -73,7 +90,8 @@ async function makeAssets() {
 }
 
 makeAssets().then(() => {
-  console.log(`Siap build. Alamat server dibaca dari github.com/${urlRepo} (branch server-url)${lanUrl ? `, cadangan Wi-Fi: ${lanUrl}` : ''}.`);
+  const kind = isDebug ? 'APK Debug' : 'APK';
+  console.log(`Siap build ${kind} (${config.appId}). Alamat server dibaca dari github.com/${urlRepo} (branch server-url)${lanUrl ? `, cadangan Wi-Fi: ${lanUrl}` : ''}.`);
 }).catch((err) => {
   console.error(err);
   process.exit(1);

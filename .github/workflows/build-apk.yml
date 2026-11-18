@@ -12,6 +12,11 @@ on:
         description: 'Alamat server Wi-Fi cadangan (dipakai bila alamat online tidak bisa dihubungi)'
         required: false
         default: 'http://192.168.2.100:8080'
+      debug:
+        description: 'Build APK Debug (bisa dipasang berdampingan, form alamat server manual)'
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: write
@@ -25,6 +30,7 @@ jobs:
         working-directory: apk
     env:
       SERVER_URL: ${{ github.event.inputs.server_url || vars.APK_SERVER_URL || 'http://192.168.2.100:8080' }}
+      APK_DEBUG: ${{ github.event.inputs.debug == true && '1' || '0' }}
     steps:
       - uses: actions/checkout@v5
 
@@ -48,7 +54,11 @@ jobs:
 
       - name: Siapkan konfigurasi, ikon, dan proyek Android
         run: |
-          node scripts/prepare.js "$SERVER_URL"
+          if [ "$APK_DEBUG" = "1" ]; then
+            node scripts/prepare.js "$SERVER_URL" --debug
+          else
+            node scripts/prepare.js "$SERVER_URL"
+          fi
           npx cap add android
           cp native/*.java android/app/src/main/java/id/tekdroid/tv/
           npx capacitor-assets generate --android
@@ -59,21 +69,30 @@ jobs:
           sed -i 's/<application/<application android:usesCleartextTraffic="true"/' android/app/src/main/AndroidManifest.xml
           sed -i 's|<item name="android:background">@drawable/splash</item>|&\n        <item name="windowSplashScreenBackground">#06121f</item>|' android/app/src/main/res/values/styles.xml
           grep -q windowSplashScreenBackground android/app/src/main/res/values/styles.xml
-          sed -i -E "s/versionCode [0-9]+/versionCode ${{ github.run_number }}/; s/versionName \"[^\"]+\"/versionName \"1.0.${{ github.run_number }}\"/" android/app/build.gradle
+          if [ "$APK_DEBUG" = "1" ]; then
+            sed -i -E "s/versionCode [0-9]+/versionCode ${{ github.run_number }}/; s/versionName \"[^\"]+\"/versionName \"1.0.${{ github.run_number }}-debug\"/" android/app/build.gradle
+          else
+            sed -i -E "s/versionCode [0-9]+/versionCode ${{ github.run_number }}/; s/versionName \"[^\"]+\"/versionName \"1.0.${{ github.run_number }}\"/" android/app/build.gradle
+          fi
 
       - name: Build APK
         working-directory: apk/android
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
-          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/TEKDROID-TV.apk"
+          if [ "$APK_DEBUG" = "1" ]; then
+            cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/TEKDROID-TV-Debug.apk"
+          else
+            cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/TEKDROID-TV.apk"
+          fi
 
       - uses: actions/upload-artifact@v4
         with:
-          name: TEKDROID-TV-apk
-          path: TEKDROID-TV.apk
+          name: ${{ env.APK_DEBUG == '1' && 'TEKDROID-TV-Debug-apk' || 'TEKDROID-TV-apk' }}
+          path: ${{ env.APK_DEBUG == '1' && 'TEKDROID-TV-Debug.apk' || 'TEKDROID-TV.apk' }}
 
       - name: Terbitkan di Releases
+        if: env.APK_DEBUG != '1'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: apk-v1.0.${{ github.run_number }}
@@ -84,3 +103,18 @@ jobs:
             Cadangan saat satu Wi-Fi dengan server: `${{ env.SERVER_URL }}`
           files: TEKDROID-TV.apk
           make_latest: true
+
+      - name: Terbitkan APK Debug di Releases
+        if: env.APK_DEBUG == '1'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-debug-v1.0.${{ github.run_number }}
+          name: TEKDROID TV Debug 1.0.${{ github.run_number }}
+          prerelease: true
+          body: |
+            **APK Debug** — bisa dipasang berdampingan dengan APK biasa.
+            Unduh **TEKDROID-TV-Debug.apk**, pasang di HP, lalu hubungkan ke server Wi-Fi:
+            `${{ env.SERVER_URL }}`
+            Bila gagal otomatis, ketuk **Isi alamat server** dan masukkan IP komputer.
+          files: TEKDROID-TV-Debug.apk
+          make_latest: false

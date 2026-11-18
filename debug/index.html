@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TEKDROID TV — Debug</title>
+  <meta name="theme-color" content="#0b1220">
+  <link rel="icon" href="/assets/logo.svg" type="image/svg+xml">
+  <style>
+    :root {
+      --bg: #0b1220;
+      --panel: #121a2b;
+      --panel-2: #182235;
+      --line: rgba(148, 163, 184, .16);
+      --text: #e8eef8;
+      --muted: #8b97ad;
+      --accent: #0ea5e9;
+      --accent-2: #38bdf8;
+      --ok: #34d399;
+      --warn: #fbbf24;
+      --bad: #f87171;
+      --phone: #0a101a;
+      --bezel: #1a2333;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font: 14px/1.45 "Segoe UI", system-ui, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(900px 480px at 12% -10%, rgba(14, 165, 233, .18), transparent 60%),
+        radial-gradient(700px 420px at 100% 100%, rgba(29, 78, 216, .16), transparent 55%),
+        var(--bg);
+    }
+    .shell {
+      display: grid;
+      grid-template-columns: 300px minmax(0, 1fr);
+      min-height: 100%;
+    }
+    aside {
+      border-right: 1px solid var(--line);
+      background: rgba(18, 26, 43, .92);
+      padding: 20px 18px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand svg { width: 34px; height: 34px; flex: 0 0 auto; }
+    .brand h1 { margin: 0; font-size: 15px; font-weight: 750; letter-spacing: .02em; }
+    .brand p { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+    .card {
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px;
+    }
+    .card h2 {
+      margin: 0 0 10px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .row { display: flex; flex-wrap: wrap; gap: 8px; }
+    label.field {
+      display: grid;
+      gap: 6px;
+      width: 100%;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    select, input[type="text"] {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 9px 11px;
+      font: inherit;
+      outline: none;
+    }
+    select:focus, input[type="text"]:focus { border-color: rgba(14, 165, 233, .55); }
+    button, .btn {
+      appearance: none;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 9px 12px;
+      font: inherit;
+      font-weight: 650;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    button:hover, .btn:hover { border-color: rgba(14, 165, 233, .45); background: #1c2740; }
+    button.primary {
+      background: linear-gradient(135deg, #0ea5e9, #1d4ed8);
+      border-color: transparent;
+      color: #fff;
+    }
+    button.primary:hover { filter: brightness(1.05); }
+    button.ghost { background: transparent; }
+    .hint {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .hint strong { color: var(--accent-2); font-weight: 650; }
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--muted);
+      box-shadow: 0 0 0 3px rgba(148, 163, 184, .12);
+    }
+    .dot.ok { background: var(--ok); box-shadow: 0 0 0 3px rgba(52, 211, 153, .15); }
+    .dot.bad { background: var(--bad); box-shadow: 0 0 0 3px rgba(248, 113, 113, .15); }
+    .dot.warn { background: var(--warn); box-shadow: 0 0 0 3px rgba(251, 191, 36, .15); }
+    .meta {
+      font-family: ui-monospace, Consolas, monospace;
+      font-size: 11px;
+      color: var(--muted);
+      word-break: break-all;
+      margin: 0;
+    }
+    main {
+      display: grid;
+      place-items: center;
+      padding: 28px 20px 36px;
+      min-width: 0;
+    }
+    .stage {
+      display: grid;
+      gap: 14px;
+      justify-items: center;
+      width: min(100%, 520px);
+    }
+    .toolbar {
+      width: 100%;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+    }
+    .phone-wrap {
+      position: relative;
+      padding: 14px;
+      border-radius: 42px;
+      background: linear-gradient(160deg, #2a364d, #121826 55%, #0c121c);
+      box-shadow:
+        0 30px 60px -28px rgba(0, 0, 0, .75),
+        inset 0 1px 0 rgba(255, 255, 255, .08);
+    }
+    .phone {
+      position: relative;
+      width: var(--w, 390px);
+      height: var(--h, 844px);
+      max-width: calc(100vw - 360px);
+      max-height: calc(100vh - 120px);
+      border-radius: 34px;
+      overflow: hidden;
+      background: var(--phone);
+      border: 2px solid rgba(255, 255, 255, .06);
+      aspect-ratio: var(--w, 390) / var(--h, 844);
+      height: auto;
+    }
+    .phone.landscape {
+      width: var(--h, 844px);
+      max-width: min(920px, calc(100vw - 360px));
+      aspect-ratio: var(--h, 844) / var(--w, 390);
+    }
+    .notch {
+      position: absolute;
+      z-index: 2;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 118px;
+      height: 28px;
+      border-radius: 18px;
+      background: #05080f;
+      pointer-events: none;
+    }
+    .phone.landscape .notch { display: none; }
+    .phone iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: #06121f;
+      display: block;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      background: rgba(14, 165, 233, .12);
+      color: var(--accent-2);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+    .foot {
+      margin-top: auto;
+      display: grid;
+      gap: 8px;
+    }
+    @media (max-width: 900px) {
+      .shell { grid-template-columns: 1fr; }
+      aside { border-right: 0; border-bottom: 1px solid var(--line); }
+      .phone { max-width: calc(100vw - 48px); }
+      .phone.landscape { max-width: calc(100vw - 48px); }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside>
+      <div class="brand">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="g" x1="5" y1="4" x2="27" y2="28" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#7dd3fc"/><stop offset="0.45" stop-color="#0ea5e9"/><stop offset="1" stop-color="#1d4ed8"/></linearGradient></defs><rect x="2.5" y="6" width="27" height="20" rx="6.2" fill="url(#g)"/><path d="M13.2 12.15v7.7l6.7-3.85z" fill="#fff"/><circle cx="24.15" cy="10.55" r="1.25" fill="#fff"/></svg>
+        <div>
+          <h1>Debug TEKDROID TV</h1>
+          <p>Uji di PC tanpa unduh APK</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Server</h2>
+        <div class="status"><span class="dot" id="pingDot"></span><span id="pingText">Memeriksa…</span></div>
+        <p class="meta" id="serverUrl"></p>
+      </div>
+
+      <div class="card">
+        <h2>Mode perangkat</h2>
+        <label class="field">Simulasi
+          <select id="sim">
+            <option value="apk">APK baru (fullscreen native)</option>
+            <option value="apk-old">APK lama (pseudo fullscreen)</option>
+            <option value="phone">Browser HP</option>
+            <option value="">Desktop web</option>
+          </select>
+        </label>
+        <label class="field" style="margin-top:10px">Ukuran layar
+          <select id="device">
+            <option value="390x844">iPhone 14 / 15</option>
+            <option value="412x915">Pixel 7</option>
+            <option value="360x800">Android kecil</option>
+            <option value="412x892">Samsung S21</option>
+            <option value="768x1024">Tablet</option>
+            <option value="960x540" data-landscape="1">Android TV / landscape</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="card">
+        <h2>Aksi</h2>
+        <div class="row">
+          <button class="primary" type="button" id="reloadBtn">Muat ulang</button>
+          <button type="button" id="clearBtn">Hapus data lokal</button>
+          <button type="button" id="homeBtn">Beranda</button>
+          <a class="btn" id="adminBtn" href="/admin" target="_blank" rel="noopener">Admin</a>
+          <a class="btn" id="openBtn" href="/" target="_blank" rel="noopener">Buka penuh</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Pasang APK ke HP</h2>
+        <p class="hint" style="margin-bottom:10px">
+          HP dan PC harus satu Wi-Fi. Buka link di bawah dari browser HP, unduh APK, lalu instal
+          (izinkan “instal aplikasi tidak dikenal”).
+        </p>
+        <p class="meta" id="apkUrl">…</p>
+        <div class="row" style="margin-top:10px">
+          <a class="btn primary" id="apkBtn" href="/debug/TEKDROID-TV.apk">Unduh APK</a>
+          <button type="button" id="copyApkBtn">Salin link</button>
+        </div>
+        <p class="hint" id="apkStatus" style="margin-top:10px">Mengecek file APK…</p>
+        <img id="apkQr" alt="QR unduh APK" width="160" height="160" style="margin-top:12px;border-radius:12px;background:#fff;padding:8px;display:none">
+      </div>
+
+      <div class="foot">
+        <p class="hint">
+          Setelah APK terpasang, perubahan web langsung terlihat tanpa unduh ulang.
+          APK hanya perlu diganti kalau mengubah kode native di folder <code>apk/</code>.
+        </p>
+        <span class="badge" id="modeBadge">sim=apk</span>
+      </div>
+    </aside>
+
+    <main>
+      <div class="stage">
+        <div class="toolbar">
+          <button type="button" id="rotateBtn">Putar layar</button>
+          <button class="ghost" type="button" id="hardReloadBtn">Hard reload iframe</button>
+        </div>
+        <div class="phone-wrap">
+          <div class="phone" id="phone">
+            <div class="notch" aria-hidden="true"></div>
+            <iframe id="frame" title="TEKDROID TV preview" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
+          </div>
+        </div>
+        <p class="meta" id="previewUrl"></p>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    (() => {
+      const $ = (id) => document.getElementById(id);
+      const frame = $('frame');
+      const phone = $('phone');
+      const sim = $('sim');
+      const device = $('device');
+      const state = {
+        landscape: false,
+        bust: Date.now(),
+      };
+
+      function baseOrigin() {
+        return location.origin;
+      }
+
+      let lanBase = '';
+
+      function apkDownloadUrl() {
+        return (lanBase || baseOrigin()) + '/debug/TEKDROID-TV.apk';
+      }
+
+      async function refreshApkCard() {
+        let apkBytes = 0;
+        try {
+          const info = await fetch('/api/lan', { cache: 'no-store' }).then((r) => r.json());
+          if (info.lan && info.lan[0]) lanBase = info.lan[0].replace(/\/+$/, '');
+          apkBytes = Number(info.apkBytes || 0);
+        } catch {}
+        const url = apkDownloadUrl();
+        const serverHint = lanBase || baseOrigin();
+        $('apkUrl').textContent = url;
+        $('apkBtn').href = '/debug/TEKDROID-TV.apk';
+        const qr = $('apkQr');
+        qr.src = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' + encodeURIComponent(url);
+        qr.style.display = 'block';
+        if (apkBytes > 0) {
+          $('apkStatus').textContent = 'APK siap (' + (apkBytes / (1024 * 1024)).toFixed(1)
+            + ' MB). Setelah terpasang, server Wi-Fi: ' + serverHint;
+        } else {
+          $('apkStatus').textContent = 'File APK belum ada di folder debug/. Atau unduh dari GitHub Releases.';
+        }
+      }
+
+      function previewPath() {
+        const mode = sim.value;
+        const q = new URLSearchParams();
+        if (mode) q.set('sim', mode);
+        q.set('_dbg', String(state.bust));
+        const qs = q.toString();
+        return '/' + (qs ? '?' + qs : '');
+      }
+
+      function applyDevice() {
+        const opt = device.selectedOptions[0];
+        const [w, h] = device.value.split('x').map(Number);
+        const forceLand = opt && opt.dataset.landscape === '1';
+        const land = forceLand || state.landscape;
+        phone.style.setProperty('--w', w);
+        phone.style.setProperty('--h', h);
+        phone.classList.toggle('landscape', land);
+      }
+
+      function syncLinks() {
+        const url = baseOrigin() + previewPath().replace(/\?_dbg=\d+/, '').replace('&_dbg=' + state.bust, '');
+        const clean = (() => {
+          const u = new URL(baseOrigin() + '/');
+          if (sim.value) u.searchParams.set('sim', sim.value);
+          return u.toString();
+        })();
+        $('previewUrl').textContent = clean;
+        $('openBtn').href = clean;
+        $('modeBadge').textContent = sim.value ? 'sim=' + sim.value : 'desktop';
+        $('serverUrl').textContent = baseOrigin();
+      }
+
+      function loadPreview(hard) {
+        applyDevice();
+        syncLinks();
+        if (hard) state.bust = Date.now();
+        frame.src = previewPath();
+      }
+
+      async function ping() {
+        const dot = $('pingDot');
+        const text = $('pingText');
+        try {
+          const r = await fetch('/api/ping', { cache: 'no-store' });
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          dot.className = 'dot ok';
+          text.textContent = 'Server aktif';
+        } catch {
+          dot.className = 'dot bad';
+          text.textContent = 'Server tidak merespons — jalankan Debug App.cmd';
+        }
+      }
+
+      function clearAppStorage() {
+        try {
+          const win = frame.contentWindow;
+          if (!win) return;
+          const keys = [];
+          for (let i = 0; i < win.localStorage.length; i++) keys.push(win.localStorage.key(i));
+          keys.filter((k) => k && (k.startsWith('tvn.') || k.startsWith('tekdroid.')))
+            .forEach((k) => win.localStorage.removeItem(k));
+          try { win.sessionStorage.clear(); } catch {}
+        } catch (err) {
+          console.warn(err);
+        }
+        loadPreview(true);
+      }
+
+      sim.addEventListener('change', () => loadPreview(true));
+      device.addEventListener('change', () => {
+        const opt = device.selectedOptions[0];
+        state.landscape = !!(opt && opt.dataset.landscape === '1');
+        applyDevice();
+      });
+      $('reloadBtn').onclick = () => loadPreview(false);
+      $('hardReloadBtn').onclick = () => loadPreview(true);
+      $('clearBtn').onclick = clearAppStorage;
+      $('homeBtn').onclick = () => loadPreview(true);
+      $('rotateBtn').onclick = () => {
+        state.landscape = !state.landscape;
+        applyDevice();
+      };
+
+      const saved = localStorage.getItem('tekdroid.debug');
+      if (saved) {
+        try {
+          const d = JSON.parse(saved);
+          if (d.sim != null) sim.value = d.sim;
+          if (d.device) device.value = d.device;
+          if (typeof d.landscape === 'boolean') state.landscape = d.landscape;
+        } catch {}
+      }
+      const persist = () => localStorage.setItem('tekdroid.debug', JSON.stringify({
+        sim: sim.value, device: device.value, landscape: state.landscape,
+      }));
+      sim.addEventListener('change', persist);
+      device.addEventListener('change', persist);
+      $('rotateBtn').addEventListener('click', persist);
+
+      $('copyApkBtn').onclick = async () => {
+        const url = apkDownloadUrl();
+        try {
+          await navigator.clipboard.writeText(url);
+          $('apkStatus').textContent = 'Link disalin. Tempel di browser HP.';
+        } catch {
+          prompt('Salin link ini:', url);
+        }
+      };
+
+      loadPreview(true);
+      refreshApkCard();
+      ping();
+      setInterval(ping, 15000);
+    })();
+  </script>
+</body>
+</html>
